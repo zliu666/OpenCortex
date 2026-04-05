@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "openharness"
+name = "opencortex"
 version = "0.1.0"
-description = "Open-source Python port of Claude Code - an AI-powered CLI coding assistant"
+description = "OpenCortex - Modular AI Agent Framework - an AI-powered CLI coding assistant"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
@@ -40,11 +40,11 @@ dev = [
 ]
 
 [project.scripts]
-openharness = "openharness.cli:app"
-oh = "openharness.cli:app"
+opencortex = "opencortex.cli:app"
+oh = "opencortex.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/openharness"]
+packages = ["src/opencortex"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
