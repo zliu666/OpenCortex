@@ -28,7 +28,11 @@ frontend/terminal/node_modules/
 
 # User data (never commit API keys or session data)
 .openharness/
+.opencortex/
 react_tui_smoke.txt
+
+# 配置说明文档（本地参考用，不提交）
+README_CONFIG.md
 
 # OS
 .DS_Store

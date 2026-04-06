@@ -31,6 +31,15 @@ def detect_provider(settings: Settings) -> ProviderInfo:
             voice_reason="voice mode is not supported for Zhipu AI providers",
         )
     
+    # MiniMax (海螺 AI)
+    if "minimax" in base_url or model.startswith("abab"):
+        return ProviderInfo(
+            name="minimax-openai-compatible",
+            auth_kind="api_key",
+            voice_supported=False,
+            voice_reason="voice mode is not supported for MiniMax providers",
+        )
+    
     if "moonshot" in base_url or model.startswith("kimi"):
         return ProviderInfo(
             name="moonshot-anthropic-compatible",
@@ -86,4 +95,3 @@ def auth_status(settings: Settings) -> str:
     if settings.api_key:
         return "configured"
     return "missing"
-

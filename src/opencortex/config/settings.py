@@ -87,6 +87,11 @@ class Settings(BaseModel):
         if zhipu_key:
             return zhipu_key
 
+        # MiniMax API Key
+        minimax_key = os.environ.get("MINIMAX_API_KEY", "")
+        if minimax_key:
+            return minimax_key
+
         env_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if env_key:
             return env_key
@@ -97,7 +102,7 @@ class Settings(BaseModel):
             return openai_key
 
         raise ValueError(
-            "No API key found. Set ZHIPU_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY "
+            "No API key found. Set ZHIPU_API_KEY, MINIMAX_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY "
             "environment variable, or configure api_key in ~/.opencortex/settings.json"
         )
 
@@ -111,18 +116,20 @@ def _apply_env_overrides(settings: Settings) -> Settings:
     """Apply supported environment variable overrides over loaded settings."""
     updates: dict[str, Any] = {}
     
-    # 模型名：支持智谱 GLM 系列
+    # 模型名：支持智谱 GLM、MiniMax
     model = (
         os.environ.get("ZHIPU_MODEL")
+        or os.environ.get("MINIMAX_MODEL")
         or os.environ.get("ANTHROPIC_MODEL") 
         or os.environ.get("OPENHARNESS_MODEL")
     )
     if model:
         updates["model"] = model
 
-    # Base URL：支持智谱
+    # Base URL：支持智谱、MiniMax
     base_url = (
         os.environ.get("ZHIPU_BASE_URL")
+        or os.environ.get("MINIMAX_BASE_URL")
         or os.environ.get("ANTHROPIC_BASE_URL") 
         or os.environ.get("OPENHARNESS_BASE_URL")
     )
@@ -133,9 +140,10 @@ def _apply_env_overrides(settings: Settings) -> Settings:
     if max_tokens:
         updates["max_tokens"] = int(max_tokens)
 
-    # API Key：支持智谱
+    # API Key：支持智谱、MiniMax
     api_key = (
         os.environ.get("ZHIPU_API_KEY")
+        or os.environ.get("MINIMAX_API_KEY")
         or os.environ.get("ANTHROPIC_API_KEY") 
         or os.environ.get("OPENAI_API_KEY")
     )
