@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 from pathlib import Path
 from typing import Awaitable, Callable
 
@@ -247,6 +248,7 @@ async def handle_line(
     print_system: SystemPrinter,
     render_event: StreamRenderer,
     clear_output: ClearHandler,
+    emit: Callable[[Any], Awaitable[None]] | None = None,
 ) -> bool:
     """Handle one submitted line for either headless or TUI rendering."""
     if not bundle.external_api_client:
@@ -269,7 +271,7 @@ async def handle_line(
                 app_state=bundle.app_state,
             ),
         )
-        await _render_command_result(result, print_system, clear_output, render_event)
+        await _render_command_result(result, print_system, clear_output, render_event, emit)
         sync_app_state(bundle)
         return not result.should_exit
 
@@ -296,11 +298,11 @@ async def _render_command_result(
     print_system: SystemPrinter,
     clear_output: ClearHandler,
     render_event: StreamRenderer | None = None,
+    emit: Callable[[Any], Awaitable[None]] | None = None,
 ) -> None:
     if result.clear_screen:
         await clear_output()
     if result.replay_messages and render_event is not None:
-        # Replay restored conversation messages as transcript events
         from opencortex.engine.stream_events import AssistantTextDelta, AssistantTurnComplete
         from opencortex.api.usage import UsageSnapshot
 
@@ -312,5 +314,13 @@ async def _render_command_result(
             elif msg.role == "assistant" and msg.text.strip():
                 await render_event(AssistantTextDelta(text=msg.text))
                 await render_event(AssistantTurnComplete(message=msg, usage=UsageSnapshot()))
-    if result.message and not result.replay_messages:
+    if result.has_select and emit is not None:
+        from opencortex.ui.protocol import BackendEvent
+        sel = result.select_options
+        await emit(BackendEvent(
+            type="select_request",
+            modal={"kind": "select", "title": sel.get("title", "Select"), "submit_prefix": sel.get("prefix", "")},
+            select_options=sel.get("options", []),
+        ))
+    if result.message and not result.replay_messages and not result.has_select:
         await print_system(result.message)

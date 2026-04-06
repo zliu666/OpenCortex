@@ -64,6 +64,11 @@ class CommandResult:
     should_exit: bool = False
     clear_screen: bool = False
     replay_messages: list | None = None  # ConversationMessage list to replay in TUI
+    select_options: dict | None = None  # {title, prefix, options: [{value, label}]}
+
+    @property
+    def has_select(self) -> bool:
+        return self.select_options is not None
 
 
 @dataclass
@@ -1344,15 +1349,67 @@ def create_default_command_registry() -> CommandRegistry:
         pm = ProviderManager()
         tokens = args.strip().split()
         settings = load_settings()
+        lang = settings.language
+
+        # /provider or /provider list → interactive provider selector
         if not tokens or tokens[0] == "list":
-            return CommandResult(message=pm.list_all_info())
+            options = []
+            for pid, pconfig in pm.list_providers().items():
+                if pid.startswith("custom:"):
+                    label = f"\U0001f4dd {pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
+                else:
+                    label = f"{pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
+                options.append({"value": f"select {pid}", "label": label})
+            if not options:
+                return CommandResult(message="No providers available." if lang == "en" else "没有可用的供应商")
+            title = "Select AI Provider" if lang == "en" else "选择 AI 供应商"
+            return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
+
+        # /provider select <id> → interactive model selector
+        if tokens[0] == "select" and len(tokens) >= 2:
+            provider_id = tokens[1]
+            provider = pm.get_provider(provider_id)
+            if not provider:
+                return CommandResult(message=f"Provider not found: {provider_id}")
+            models = provider.get("models", [])
+            if not models:
+                return CommandResult(message=f"No models for {provider_id}")
+            name = provider.get("name", provider_id)
+            title = f"Select Model - {name}" if lang == "en" else f"选择模型 - {name}"
+            options = [{"value": f"pick {provider_id} {m}", "label": m} for m in models]
+            return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
+
+        # /provider pick <id> <model> → execute switch
+        if tokens[0] == "pick" and len(tokens) >= 3:
+            provider_id = tokens[1]
+            model = tokens[2]
+            provider = pm.get_provider(provider_id)
+            if not provider:
+                return CommandResult(message=f"Provider not found: {provider_id}")
+            if provider.get("base_url"):
+                settings.base_url = provider["base_url"]
+            if provider.get("api_format"):
+                settings.api_format = provider["api_format"]
+            settings.model = model
+            if provider.get("api_key"):
+                settings.api_key = provider["api_key"]
+            save_settings(settings)
+            context.engine.set_model(model)
+            if context.app_state is not None:
+                context.app_state.set(model=model)
+            name = provider.get("name", provider_id)
+            return CommandResult(message=f"Switched to {name} / {model}\n  base_url: {settings.base_url or '(default)'}\n  api_format: {settings.api_format}\nRestart session to use the new provider.")
+
+        # /provider show <id> → show details
         if tokens[0] == "show" and len(tokens) == 2:
             return CommandResult(message=pm.get_provider_info(tokens[1]))
+
+        # /provider use <id> → legacy direct switch
         if tokens[0] == "use" and len(tokens) >= 2:
             provider_id = tokens[1]
             provider = pm.get_provider(provider_id)
             if not provider:
-                return CommandResult(message=f"Provider not found: {provider_id}\nUse /provider list to see available providers.")
+                return CommandResult(message=f"Provider not found: {provider_id}")
             if provider.get("base_url"):
                 settings.base_url = provider["base_url"]
             if provider.get("api_format"):
@@ -1366,7 +1423,8 @@ def create_default_command_registry() -> CommandRegistry:
             if context.app_state is not None:
                 context.app_state.set(model=settings.model)
             return CommandResult(message=f"Switched to {provider.get('name', provider_id)}\n  model: {settings.model}\n  base_url: {settings.base_url or '(default)'}\n  api_format: {settings.api_format}\nRestart session to use the new provider.")
-        return CommandResult(message="Usage: /provider [list|show ID|use ID]")
+
+        return CommandResult(message="Usage: /provider [list|show ID|use ID|select ID|pick ID MODEL]")
     registry.register(SlashCommand("provider", "Switch AI provider (zhipu/minimax/custom)", _provider_handler))
 
     return registry
