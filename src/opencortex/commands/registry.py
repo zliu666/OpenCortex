@@ -1449,7 +1449,44 @@ def create_default_command_registry() -> CommandRegistry:
                 context.app_state.set(model=settings.model)
             return CommandResult(message=f"Switched to {provider.get('name', provider_id)}\n  model: {settings.model}\n  base_url: {settings.base_url or '(default)'}\n  api_format: {settings.api_format}\nRestart session to use the new provider.")
 
-        return CommandResult(message="Usage: /provider [list|show ID|use ID|select ID|pick ID MODEL]")
+        # /provider setup <id> → setup provider (check key, prompt if missing)
+        if tokens[0] == "setup" and len(tokens) >= 2:
+            provider_id = tokens[1]
+            provider = pm.get_provider(provider_id)
+            if not provider:
+                return CommandResult(message=f"Provider not found: {provider_id}")
+            name = provider.get("name", provider_id)
+            requires = provider.get("requires", [])
+            # Check if key already configured
+            current_key = settings.api_key or ""
+            env_key = ""
+            for env_name in requires:
+                import os
+                val = os.environ.get(env_name, "")
+                if val:
+                    env_key = val
+                    break
+            if current_key or env_key or provider.get("api_key"):
+                masked = (current_key[:6] + "..." + current_key[-4:]) if len(current_key) > 10 else "(configured)"
+                return CommandResult(message=f"✅ {name} already configured.\n  API Key: {masked}\n  Use /provider use {provider_id} or /model list to switch.")
+            if not requires:
+                return CommandResult(message=f"{name} does not require an API key.")
+            env_hints = " or ".join(requires)
+            return CommandResult(
+                message=(
+                    f"🔑 {name} requires an API key.\n\n"
+                    f"Option 1: Use /login\n"
+                    f"  /login YOUR_API_KEY\n\n"
+                    f"Option 2: Edit config file\n"
+                    f"  nano ~/.opencortex/settings.json\n"
+                    f"  Set \"api_key\" field\n\n"
+                    f"Option 3: Set environment variable\n"
+                    f"  export {requires[0]}=YOUR_API_KEY\n\n"
+                    f"Get your key at: {provider.get('key_url', 'provider website')}"
+                )
+            )
+
+        return CommandResult(message="Usage: /provider [list|show|setup|use|select ID|pick ID MODEL]")
     registry.register(SlashCommand("provider", "Switch AI provider (zhipu/minimax/custom)", _provider_handler))
 
     return registry
