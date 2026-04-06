@@ -1361,7 +1361,8 @@ def create_default_command_registry() -> CommandRegistry:
         return CommandResult(message=f"Language set to {label}")
     registry.register(SlashCommand("lang", "Switch command help language (en/zh)", _lang_handler))
 
-    # --- Provider switch (text mode fallback for headless/textual) ---
+
+    # --- Provider management (menu-driven) ---
     async def _provider_handler(args: str, context: CommandContext) -> CommandResult:
         from opencortex.providers.manager import ProviderManager
         pm = ProviderManager()
@@ -1369,47 +1370,60 @@ def create_default_command_registry() -> CommandRegistry:
         settings = load_settings()
         lang = settings.language
 
-        # /provider or /provider list → interactive provider selector
-        if not tokens or tokens[0] == "list":
-            options = []
-            for pid, pconfig in pm.list_providers().items():
-                if pid.startswith("custom:"):
-                    label = f"\U0001f4dd {pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
-                else:
-                    label = f"{pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
-                options.append({"value": f"select {pid}", "label": label})
-            if not options:
-                return CommandResult(message="No providers available." if lang == "en" else "没有可用的供应商")
-            title = "Select AI Provider" if lang == "en" else "选择 AI 供应商"
+        # /provider → main menu (switch / setup / show)
+        if not tokens:
+            options = [
+                {"value": "switch", "label": "🔄 切换供应商" if lang == "zh" else "🔄 Switch Provider"},
+                {"value": "setup", "label": "⚙️ 配置供应商" if lang == "zh" else "⚙️ Setup Provider"},
+                {"value": "show", "label": "📋 查看当前配置" if lang == "zh" else "📋 Show Current Config"},
+            ]
+            title = "供应商管理" if lang == "zh" else "Provider Management"
             return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
 
-        # /provider select <id> → interactive model selector
-        if tokens[0] == "select" and len(tokens) >= 2:
-            provider_id = tokens[1]
-            provider = pm.get_provider(provider_id)
-            if not provider:
-                return CommandResult(message=f"Provider not found: {provider_id}")
-            models = provider.get("models", [])
-            if not models:
-                return CommandResult(message=f"No models for {provider_id}")
-            name = provider.get("name", provider_id)
-            title = f"Select Model - {name}" if lang == "en" else f"选择模型 - {name}"
-            options = [{"value": f"pick {provider_id} {m}", "label": m} for m in models]
-            return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
+        # /provider switch → select provider → select model → done
+        if tokens[0] == "switch":
+            if len(tokens) == 1:
+                options = []
+                for pid, pconfig in pm.list_providers().items():
+                    if pid.startswith("custom:"):
+                        label = f"📝 {pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
+                    else:
+                        label = f"{pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
+                    options.append({"value": f"switch {pid}", "label": label})
+                if not options:
+                    return CommandResult(message="No providers available." if lang == "en" else "没有可用的供应商")
+                title = "选择供应商" if lang == "zh" else "Select Provider"
+                return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
+            elif len(tokens) == 2:
+                provider_id = tokens[1]
+                provider = pm.get_provider(provider_id)
+                if not provider:
+                    return CommandResult(message=f"Provider not found: {provider_id}")
+                models = provider.get("models", [])
+                if not models:
+                    return CommandResult(message=f"No models for {provider_id}")
+                name = provider.get("name", provider_id)
+                title = f"选择模型 - {name}" if lang == "zh" else f"Select Model - {name}"
+                options = [{"value": f"apply {provider_id} {m}", "label": m} for m in models]
+                return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
 
-        # /provider pick <id> <model> → execute switch
-        if tokens[0] == "pick" and len(tokens) >= 3:
+        # /provider apply <id> <model> → execute switch with key check
+        if tokens[0] == "apply" and len(tokens) >= 3:
             provider_id = tokens[1]
             model = tokens[2]
             provider = pm.get_provider(provider_id)
             if not provider:
                 return CommandResult(message=f"Provider not found: {provider_id}")
-            # Check API key availability
             requires = provider.get("requires", [])
             key_ok = bool(provider.get("api_key")) or bool(settings.api_key)
             if requires and not key_ok:
                 env_hints = " or ".join(requires)
-                msg = f"⚠️ No API key configured for {provider.get('name', provider_id)}.\nSet it via: /login YOUR_KEY\nOr set environment variable: {env_hints}" if lang == "en" else f"⚠️ {provider.get('name', provider_id)} 未配置 API Key。\n使用 /login YOUR_KEY 设置\n或设置环境变量: {env_hints}"
+                msg = (f"⚠️ {provider.get('name', provider_id)} 未配置 API Key。\n"
+                       f"请先使用 /provider → ⚙️ 配置供应商\n"
+                       f"或设置环境变量: {env_hints}") if lang == "zh" else (
+                    f"⚠️ No API key for {provider.get('name', provider_id)}.\n"
+                    f"Use /provider → ⚙️ Setup Provider first.\n"
+                    f"Or set env: {env_hints}")
                 return CommandResult(message=msg)
             if provider.get("base_url"):
                 settings.base_url = provider["base_url"]
@@ -1423,70 +1437,92 @@ def create_default_command_registry() -> CommandRegistry:
             if context.app_state is not None:
                 context.app_state.set(model=model)
             name = provider.get("name", provider_id)
-            return CommandResult(message=f"Switched to {name} / {model}\n  base_url: {settings.base_url or '(default)'}\n  api_format: {settings.api_format}\nRestart session to use the new provider.")
+            msg = (f"✅ 已切换到 {name} / {model}\n"
+                   f"  base_url: {settings.base_url or '(default)'}\n"
+                   f"  api_format: {settings.api_format}\n"
+                   f"请重启会话以使用新的供应商。") if lang == "zh" else (
+                f"✅ Switched to {name} / {model}\n"
+                f"  base_url: {settings.base_url or '(default)'}\n"
+                f"  api_format: {settings.api_format}\n"
+                f"Restart session to use the new provider.")
+            return CommandResult(message=msg)
 
-        # /provider show <id> → show details
-        if tokens[0] == "show" and len(tokens) == 2:
-            return CommandResult(message=pm.get_provider_info(tokens[1]))
-
-        # /provider use <id> → legacy direct switch
-        if tokens[0] == "use" and len(tokens) >= 2:
-            provider_id = tokens[1]
-            provider = pm.get_provider(provider_id)
-            if not provider:
-                return CommandResult(message=f"Provider not found: {provider_id}")
-            if provider.get("base_url"):
-                settings.base_url = provider["base_url"]
-            if provider.get("api_format"):
-                settings.api_format = provider["api_format"]
-            if provider.get("default_model"):
-                settings.model = provider["default_model"]
-            if provider.get("api_key"):
-                settings.api_key = provider["api_key"]
-            save_settings(settings)
-            context.engine.set_model(settings.model)
-            if context.app_state is not None:
-                context.app_state.set(model=settings.model)
-            return CommandResult(message=f"Switched to {provider.get('name', provider_id)}\n  model: {settings.model}\n  base_url: {settings.base_url or '(default)'}\n  api_format: {settings.api_format}\nRestart session to use the new provider.")
-
-        # /provider setup <id> → setup provider (check key, prompt if missing)
-        if tokens[0] == "setup" and len(tokens) >= 2:
-            provider_id = tokens[1]
-            provider = pm.get_provider(provider_id)
-            if not provider:
-                return CommandResult(message=f"Provider not found: {provider_id}")
-            name = provider.get("name", provider_id)
-            requires = provider.get("requires", [])
-            # Check if key already configured
-            current_key = settings.api_key or ""
-            env_key = ""
-            for env_name in requires:
+        # /provider setup → select provider to setup
+        if tokens[0] == "setup":
+            if len(tokens) == 1:
+                options = []
+                for pid, pconfig in pm.list_providers().items():
+                    name = pconfig.get("name", pid)
+                    options.append({"value": f"setup {pid}", "label": name})
+                title = "选择要配置的供应商" if lang == "zh" else "Select Provider to Setup"
+                return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
+            elif len(tokens) >= 2:
                 import os
-                val = os.environ.get(env_name, "")
-                if val:
-                    env_key = val
-                    break
-            if current_key or env_key or provider.get("api_key"):
-                masked = (current_key[:6] + "..." + current_key[-4:]) if len(current_key) > 10 else "(configured)"
-                return CommandResult(message=f"✅ {name} already configured.\n  API Key: {masked}\n  Use /provider use {provider_id} or /model list to switch.")
-            if not requires:
-                return CommandResult(message=f"{name} does not require an API key.")
-            env_hints = " or ".join(requires)
-            return CommandResult(
-                message=(
-                    f"🔑 {name} requires an API key.\n\n"
-                    f"Option 1: Use /login\n"
+                provider_id = tokens[1]
+                provider = pm.get_provider(provider_id)
+                if not provider:
+                    return CommandResult(message=f"Provider not found: {provider_id}")
+                name = provider.get("name", provider_id)
+                requires = provider.get("requires", [])
+                current_key = settings.api_key or ""
+                env_key = ""
+                for env_name in requires:
+                    val = os.environ.get(env_name, "")
+                    if val:
+                        env_key = val
+                        break
+                if current_key or env_key or provider.get("api_key"):
+                    masked = (current_key[:6] + "..." + current_key[-4:]) if len(current_key) > 10 else "(configured)"
+                    msg = (f"✅ {name} 已配置。\n"
+                           f"  API Key: {masked}\n"
+                           f"使用 /provider switch 切换。") if lang == "zh" else (
+                        f"✅ {name} is already configured.\n"
+                        f"  API Key: {masked}\n"
+                        f"Use /provider switch to switch.")
+                    return CommandResult(message=msg)
+                if not requires:
+                    return CommandResult(message=f"✅ {name} does not require an API key.")
+                env_hints = " or ".join(requires)
+                msg = (f"🔑 {name} 未配置 API Key\n\n"
+                       f"方式 1: 使用命令设置\n"
+                       f"  /login YOUR_API_KEY\n\n"
+                       f"方式 2: 编辑配置文件\n"
+                       f"  nano ~/.opencortex/settings.json\n"
+                       f'  设置 "api_key" 字段\n\n'
+                       f"方式 3: 设置环境变量\n"
+                       f"  export {requires[0]}=YOUR_API_KEY\n\n"
+                       f"获取 Key: {provider.get('key_url', 'provider website')}\n\n"
+                       f"配置好后使用 /provider switch 切换。") if lang == "zh" else (
+                    f"🔑 {name} requires an API key\n\n"
+                    f"Option 1: Use command\n"
                     f"  /login YOUR_API_KEY\n\n"
                     f"Option 2: Edit config file\n"
-                    f"  nano ~/.opencortex/settings.json\n"
-                    f"  Set \"api_key\" field\n\n"
+                    f"  nano ~/.opencortex/settings.json\n\n"
                     f"Option 3: Set environment variable\n"
                     f"  export {requires[0]}=YOUR_API_KEY\n\n"
-                    f"Get your key at: {provider.get('key_url', 'provider website')}"
-                )
-            )
+                    f"Get key at: {provider.get('key_url', 'provider website')}\n\n"
+                    f"After setup, use /provider switch to switch.")
+                return CommandResult(message=msg)
 
-        return CommandResult(message="Usage: /provider [list|show|setup|use|select ID|pick ID MODEL]")
+        # /provider show → show current config
+        if tokens[0] == "show":
+            provider = detect_provider(settings)
+            masked = (settings.api_key[:6] + "..." + settings.api_key[-4:]) if settings.api_key and len(settings.api_key) > 10 else "(not set)"
+            msg = (f"当前配置:\n"
+                   f"  供应商: {provider.name}\n"
+                   f"  模型: {settings.model}\n"
+                   f"  base_url: {settings.base_url or '(default)'}\n"
+                   f"  api_format: {settings.api_format}\n"
+                   f"  API Key: {masked}") if lang == "zh" else (
+                f"Current config:\n"
+                f"  Provider: {provider.name}\n"
+                f"  Model: {settings.model}\n"
+                f"  base_url: {settings.base_url or '(default)'}\n"
+                f"  api_format: {settings.api_format}\n"
+                f"  API Key: {masked}")
+            return CommandResult(message=msg)
+
+        return CommandResult(message="Usage: /provider (interactive menu)")
     registry.register(SlashCommand("provider", "Switch AI provider (zhipu/minimax/custom)", _provider_handler))
 
     return registry
