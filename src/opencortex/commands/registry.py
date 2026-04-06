@@ -82,6 +82,7 @@ class CommandContext:
     cwd: str = "."
     tool_registry: ToolRegistry | None = None
     app_state: AppStateStore | None = None
+    ask_user: Callable[[str], Awaitable[str]] | None = None  # Prompt user for text input
 
 
 CommandHandler = Callable[[str, CommandContext], Awaitable[CommandResult]]
@@ -720,6 +721,12 @@ def create_default_command_registry() -> CommandRegistry:
                 )
             )
         settings.api_key = api_key
+        # Also save to provider_keys for current provider
+        current_provider = detect_provider(settings)
+        for pid, pconfig in __import__("opencortex.providers.manager", fromlist=["PRESET_PROVIDERS"]).PRESET_PROVIDERS.items():
+            if pconfig.get("base_url") == settings.base_url:
+                settings.provider_keys[pid] = api_key
+                break
         save_settings(settings)
         return CommandResult(message="Stored API key in ~/.opencortex/settings.json")
 
@@ -1478,17 +1485,12 @@ def create_default_command_registry() -> CommandRegistry:
                         break
                 if current_key or env_key or provider.get("api_key"):
                     masked = (current_key[:6] + "..." + current_key[-4:]) if len(current_key) > 10 else "(configured)"
-                    msg = (f"✅ {name} 已配置。\n"
-                           f"  API Key: {masked}\n\n"
-                           f"如需修改，请编辑配置文件:\n"
-                           f"  nano ~/.opencortex/settings.json\n"
-                           f"  在 provider_keys.{provider_id} 中修改") if lang == "zh" else (
-                        f"✅ {name} is already configured.\n"
-                        f"  API Key: {masked}\n\n"
-                        f"To update, edit config file:\n"
-                        f"  nano ~/.opencortex/settings.json\n"
-                           f"  Change provider_keys.{provider_id}")
-                    return CommandResult(message=msg)
+                    title = f"{name} - API Key: {masked}" if lang == "zh" else f"{name} - API Key: {masked}"
+                    options = [
+                        {"value": f"keep {provider_id}", "label": "✅ 继续使用" if lang == "zh" else "✅ Keep current key"},
+                        {"value": f"resetkey {provider_id}", "label": "🔄 重新配置" if lang == "zh" else "🔄 Reconfigure"},
+                    ]
+                    return CommandResult(select_options={"title": title, "prefix": "/provider ", "options": options})
                 if not requires:
                     return CommandResult(message=f"✅ {name} does not require an API key.")
                 env_hints = " or ".join(requires)
@@ -1529,6 +1531,30 @@ def create_default_command_registry() -> CommandRegistry:
                 f"  base_url: {settings.base_url or '(default)'}\n"
                 f"  api_format: {settings.api_format}\n"
                 f"  API Key: {masked}")
+            return CommandResult(message=msg)
+
+        # /provider keep <id> → keep current key
+        if tokens[0] == "keep" and len(tokens) >= 2:
+            return CommandResult(message="✅ 保持不变。" if lang == "zh" else "✅ Kept unchanged.")
+
+        # /provider resetkey <id> → prompt for new key
+        if tokens[0] == "resetkey" and len(tokens) >= 2:
+            provider_id = tokens[1]
+            provider = pm.get_provider(provider_id)
+            if not provider:
+                return CommandResult(message=f"Provider not found: {provider_id}")
+            name = provider.get("name", provider_id)
+            msg = (
+                f"🔑 请输入 {name} 的新 API Key:\n"
+                f"  /login YOUR_NEW_API_KEY\n\n"
+                f"输入后会自动保存到 provider_keys.{provider_id}\n"
+                f"获取 Key: {provider.get('key_url', 'provider website')}"
+            ) if lang == "zh" else (
+                f"🔑 Enter new API key for {name}:\n"
+                f"  /login YOUR_NEW_API_KEY\n\n"
+                f"It will be saved to provider_keys.{provider_id}\n"
+                f"Get key: {provider.get('key_url', 'provider website')}\n"
+            )
             return CommandResult(message=msg)
 
         return CommandResult(message="Usage: /provider (interactive menu)")
