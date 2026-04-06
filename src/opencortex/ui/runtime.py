@@ -279,8 +279,16 @@ async def handle_line(
     bundle.engine.set_system_prompt(
         build_runtime_system_prompt(settings, cwd=bundle.cwd, latest_user_prompt=line)
     )
-    async for event in bundle.engine.submit_message(line):
-        await render_event(event)
+    try:
+        async for event in bundle.engine.submit_message(line):
+            await render_event(event)
+    except Exception as exc:
+        error_msg = str(exc)
+        if "AuthenticationFailure" in type(exc).__name__ or "401" in error_msg or "403" in error_msg:
+            error_msg = f"Authentication failed. Check API key for current provider.\nUse /provider to switch or /login to update key.\nDetails: {error_msg}"
+        elif "429" in error_msg or "RateLimit" in type(exc).__name__:
+            error_msg = f"Rate limited. Please wait and retry.\nDetails: {error_msg}"
+        await print_system(f"❌ {error_msg}")
     save_session_snapshot(
         cwd=bundle.cwd,
         model=settings.model,

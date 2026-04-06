@@ -986,7 +986,25 @@ def create_default_command_registry() -> CommandRegistry:
             if context.app_state is not None:
                 context.app_state.set(model=tokens[1])
             return CommandResult(message=f"Model set to {tokens[1]}. Restart session to use it.")
-        return CommandResult(message="Usage: /model [show|set MODEL]")
+        if tokens[0] == "list":
+            # List models for current provider
+            from opencortex.providers.manager import ProviderManager
+            pm = ProviderManager()
+            # Find provider by matching base_url
+            current_provider = None
+            for pid, pconfig in pm.list_providers().items():
+                if pconfig.get("base_url") == settings.base_url:
+                    current_provider = (pid, pconfig)
+                    break
+            if not current_provider:
+                return CommandResult(message=f"Current model: {settings.model}\nProvider not in preset list. Use /model set MODEL to switch.")
+            pid, pconfig = current_provider
+            models = pconfig.get("models", [])
+            lang = settings.language
+            title = f"Select Model - {pconfig['name']}" if lang == "en" else f"选择模型 - {pconfig['name']}"
+            options = [{"value": f"set {m}", "label": m} for m in models]
+            return CommandResult(select_options={"title": title, "prefix": "/model ", "options": options})
+        return CommandResult(message="Usage: /model [show|set MODEL|list]")
 
     async def _theme_handler(args: str, context: CommandContext) -> CommandResult:
         settings = load_settings()
@@ -1386,6 +1404,13 @@ def create_default_command_registry() -> CommandRegistry:
             provider = pm.get_provider(provider_id)
             if not provider:
                 return CommandResult(message=f"Provider not found: {provider_id}")
+            # Check API key availability
+            requires = provider.get("requires", [])
+            key_ok = bool(provider.get("api_key")) or bool(settings.api_key)
+            if requires and not key_ok:
+                env_hints = " or ".join(requires)
+                msg = f"⚠️ No API key configured for {provider.get('name', provider_id)}.\nSet it via: /login YOUR_KEY\nOr set environment variable: {env_hints}" if lang == "en" else f"⚠️ {provider.get('name', provider_id)} 未配置 API Key。\n使用 /login YOUR_KEY 设置\n或设置环境变量: {env_hints}"
+                return CommandResult(message=msg)
             if provider.get("base_url"):
                 settings.base_url = provider["base_url"]
             if provider.get("api_format"):
