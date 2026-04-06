@@ -20,7 +20,7 @@ PRESET_PROVIDERS: dict[str, dict[str, Any]] = {
     },
     "minimax": {
         "name": "MiniMax",
-        "base_url": "https://api.minimax.chat/v1",
+        "base_url": "https://api.minimaxi.com/v1",
         "api_format": "openai",
         "default_model": "MiniMax-M2.7",
         "models": ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed", "MiniMax-M2.1", "MiniMax-M2"],
