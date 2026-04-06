@@ -5,8 +5,8 @@ from __future__ import annotations
 import fnmatch
 from dataclasses import dataclass
 
-from openharness.config.settings import PermissionSettings
-from openharness.permissions.modes import PermissionMode
+from opencortex.config.settings import PermissionSettings
+from opencortex.permissions.modes import PermissionMode
 
 
 @dataclass(frozen=True)

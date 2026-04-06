@@ -9,20 +9,20 @@ from typing import Any, AsyncIterator
 
 from openai import AsyncOpenAI
 
-from openharness.api.client import (
+from opencortex.api.client import (
     ApiMessageCompleteEvent,
     ApiMessageRequest,
     ApiStreamEvent,
     ApiTextDeltaEvent,
 )
-from openharness.api.errors import (
+from opencortex.api.errors import (
     AuthenticationFailure,
-    OpenHarnessApiError,
+    OpenCortexApiError,
     RateLimitFailure,
     RequestFailure,
 )
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import (
+from opencortex.api.usage import UsageSnapshot
+from opencortex.engine.messages import (
     ConversationMessage,
     ContentBlock,
     TextBlock,
@@ -189,7 +189,7 @@ class OpenAICompatibleClient:
                 async for event in self._stream_once(request):
                     yield event
                 return
-            except OpenHarnessApiError:
+            except OpenCortexApiError:
                 raise
             except Exception as exc:
                 last_error = exc
@@ -332,7 +332,7 @@ class OpenAICompatibleClient:
         return False
 
     @staticmethod
-    def _translate_error(exc: Exception) -> OpenHarnessApiError:
+    def _translate_error(exc: Exception) -> OpenCortexApiError:
         status = getattr(exc, "status_code", None)
         msg = str(exc)
         if status == 401 or status == 403:

@@ -66,8 +66,8 @@ def get_teammate_command() -> str:
     Resolution order:
     1. ``OPENHARNESS_TEAMMATE_COMMAND`` environment variable — allows the
        operator to point at a specific binary or wrapper script.
-    2. The ``openharness`` entry-point on PATH (installed package mode).
-    3. The current Python interpreter running the ``openharness`` module
+    2. The ``opencortex`` entry-point on PATH (installed package mode).
+    3. The current Python interpreter running the ``opencortex`` module
        (development / editable-install fallback).
     """
     override = os.environ.get(TEAMMATE_COMMAND_ENV_VAR)
@@ -75,7 +75,7 @@ def get_teammate_command() -> str:
         return override
 
     # Check if we are running as an installed package with an entry-point.
-    entry_point = shutil.which("openharness")
+    entry_point = shutil.which("opencortex")
     if entry_point:
         return entry_point
 

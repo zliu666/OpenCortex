@@ -7,25 +7,25 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator, Awaitable, Callable
 
-from openharness.api.client import (
+from opencortex.api.client import (
     ApiMessageCompleteEvent,
     ApiMessageRequest,
     ApiTextDeltaEvent,
     SupportsStreamingMessages,
 )
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, ToolResultBlock
-from openharness.engine.stream_events import (
+from opencortex.api.usage import UsageSnapshot
+from opencortex.engine.messages import ConversationMessage, ToolResultBlock
+from opencortex.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
     StreamEvent,
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from openharness.hooks import HookEvent, HookExecutor
-from openharness.permissions.checker import PermissionChecker
-from openharness.tools.base import ToolExecutionContext
-from openharness.tools.base import ToolRegistry
+from opencortex.hooks import HookEvent, HookExecutor
+from opencortex.permissions.checker import PermissionChecker
+from opencortex.tools.base import ToolExecutionContext
+from opencortex.tools.base import ToolRegistry
 
 
 PermissionPrompt = Callable[[str, str], Awaitable[bool]]
@@ -62,7 +62,7 @@ async def run_query(
     content) and, if that is not enough, performs a full LLM-based
     summarization of older messages.
     """
-    from openharness.services.compact import (
+    from opencortex.services.compact import (
         AutoCompactState,
         auto_compact_if_needed,
     )

@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage
+from opencortex.api.usage import UsageSnapshot
+from opencortex.engine.messages import ConversationMessage
 
 
 @dataclass(frozen=True)

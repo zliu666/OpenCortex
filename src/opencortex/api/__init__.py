@@ -1,15 +1,15 @@
 """API exports."""
 
-from openharness.api.client import AnthropicApiClient
-from openharness.api.errors import OpenHarnessApiError
-from openharness.api.openai_client import OpenAICompatibleClient
-from openharness.api.provider import ProviderInfo, auth_status, detect_provider
-from openharness.api.usage import UsageSnapshot
+from opencortex.api.client import AnthropicApiClient
+from opencortex.api.errors import OpenCortexApiError
+from opencortex.api.openai_client import OpenAICompatibleClient
+from opencortex.api.provider import ProviderInfo, auth_status, detect_provider
+from opencortex.api.usage import UsageSnapshot
 
 __all__ = [
     "AnthropicApiClient",
     "OpenAICompatibleClient",
-    "OpenHarnessApiError",
+    "OpenCortexApiError",
     "ProviderInfo",
     "UsageSnapshot",
     "auth_status",

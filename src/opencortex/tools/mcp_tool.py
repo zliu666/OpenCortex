@@ -6,13 +6,13 @@ import re
 
 from pydantic import BaseModel, Field, create_model
 
-from openharness.mcp.client import McpClientManager
-from openharness.mcp.types import McpToolInfo
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.mcp.client import McpClientManager
+from opencortex.mcp.types import McpToolInfo
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class McpToolAdapter(BaseTool):
-    """Expose one MCP tool as a normal OpenHarness tool."""
+    """Expose one MCP tool as a normal OpenCortex tool."""
 
     def __init__(self, manager: McpClientManager, tool_info: McpToolInfo) -> None:
         self._manager = manager

@@ -5,7 +5,7 @@ from __future__ import annotations
 from hashlib import sha1
 from pathlib import Path
 
-from openharness.config.paths import get_data_dir
+from opencortex.config.paths import get_data_dir
 
 
 def get_project_memory_dir(cwd: str | Path) -> Path:

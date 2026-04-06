@@ -1,4 +1,4 @@
-"""Hook event names supported by OpenHarness."""
+"""Hook event names supported by OpenCortex."""
 
 from __future__ import annotations
 

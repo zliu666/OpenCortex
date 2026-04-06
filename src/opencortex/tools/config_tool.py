@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from openharness.config.settings import load_settings, save_settings
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.config.settings import load_settings, save_settings
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class ConfigToolInput(BaseModel):
@@ -17,10 +17,10 @@ class ConfigToolInput(BaseModel):
 
 
 class ConfigTool(BaseTool):
-    """Read or update OpenHarness settings."""
+    """Read or update OpenCortex settings."""
 
     name = "config"
-    description = "Read or update OpenHarness settings."
+    description = "Read or update OpenCortex settings."
     input_model = ConfigToolInput
 
     async def execute(self, arguments: ConfigToolInput, context: ToolExecutionContext) -> ToolResult:

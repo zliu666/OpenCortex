@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from openharness.api.usage import UsageSnapshot
-from openharness.config.paths import get_sessions_dir
-from openharness.engine.messages import ConversationMessage
+from opencortex.api.usage import UsageSnapshot
+from opencortex.config.paths import get_sessions_dir
+from opencortex.engine.messages import ConversationMessage
 
 
 def get_project_session_dir(cwd: str | Path) -> Path:
@@ -162,7 +162,7 @@ def export_session_markdown(
     """Export the session transcript as Markdown."""
     session_dir = get_project_session_dir(cwd)
     path = session_dir / "transcript.md"
-    parts: list[str] = ["# OpenHarness Session Transcript"]
+    parts: list[str] = ["# OpenCortex Session Transcript"]
     for message in messages:
         parts.append(f"\n## {message.role.capitalize()}\n")
         text = message.text.strip()

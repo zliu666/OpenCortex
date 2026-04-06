@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.skills.types import SkillDefinition
+from opencortex.skills.types import SkillDefinition
 
 _CONTENT_DIR = Path(__file__).parent / "content"
 

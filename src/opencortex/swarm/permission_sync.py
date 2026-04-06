@@ -1,4 +1,4 @@
-"""Permission sync protocol for leader-worker coordination in OpenHarness swarms.
+"""Permission sync protocol for leader-worker coordination in OpenCortex swarms.
 
 Provides both file-based (pending/resolved directories) and mailbox-based
 permission request/response coordination between swarm workers and the leader.
@@ -15,8 +15,8 @@ Mailbox-based flow:
     3. Worker calls ``poll_permission_response()`` on its own mailbox
 
 Paths:
-    ~/.openharness/teams/<teamName>/permissions/pending/<id>.json
-    ~/.openharness/teams/<teamName>/permissions/resolved/<id>.json
+    ~/.opencortex/teams/<teamName>/permissions/pending/<id>.json
+    ~/.opencortex/teams/<teamName>/permissions/resolved/<id>.json
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterator, Literal
 
-from openharness.swarm.mailbox import (
+from opencortex.swarm.mailbox import (
     MailboxMessage,
     TeammateMailbox,
     create_permission_request_message,
@@ -46,7 +46,7 @@ from openharness.swarm.mailbox import (
 )
 
 if TYPE_CHECKING:
-    from openharness.permissions.checker import PermissionChecker
+    from opencortex.permissions.checker import PermissionChecker
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +317,7 @@ def generate_sandbox_request_id() -> str:
 
 
 def get_permission_dir(team_name: str) -> Path:
-    """Return ~/.openharness/teams/{teamName}/permissions/"""
+    """Return ~/.opencortex/teams/{teamName}/permissions/"""
     return get_team_dir(team_name) / "permissions"
 
 
@@ -758,7 +758,7 @@ async def get_leader_name(team_name: str | None = None) -> str | None:
         The leader's name string, or ``None`` if the team file is missing.
         Falls back to ``'team-lead'`` if the lead member is not found.
     """
-    from openharness.swarm.team_lifecycle import read_team_file_async
+    from opencortex.swarm.team_lifecycle import read_team_file_async
 
     team = team_name or _get_team_name()
     if not team:
@@ -1109,7 +1109,7 @@ async def handle_permission_request(
 
     Args:
         request: The incoming permission request from a worker.
-        checker: An already-configured :class:`~openharness.permissions.checker.PermissionChecker`.
+        checker: An already-configured :class:`~opencortex.permissions.checker.PermissionChecker`.
 
     Returns:
         A :class:`SwarmPermissionResponse` with the decision.

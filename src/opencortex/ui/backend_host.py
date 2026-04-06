@@ -10,18 +10,18 @@ import sys
 from dataclasses import dataclass
 from uuid import uuid4
 
-from openharness.api.client import SupportsStreamingMessages
-from openharness.bridge import get_bridge_manager
-from openharness.engine.stream_events import (
+from opencortex.api.client import SupportsStreamingMessages
+from opencortex.bridge import get_bridge_manager
+from opencortex.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
     StreamEvent,
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from openharness.tasks import get_task_manager
-from openharness.ui.protocol import BackendEvent, FrontendRequest, TranscriptItem
-from openharness.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
+from opencortex.tasks import get_task_manager
+from opencortex.ui.protocol import BackendEvent, FrontendRequest, TranscriptItem
+from opencortex.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
 
 _PROTOCOL_PREFIX = "OHJSON:"
 
@@ -40,7 +40,7 @@ class BackendHostConfig:
 
 
 class ReactBackendHost:
-    """Drive the OpenHarness runtime over a structured stdin/stdout protocol."""
+    """Drive the OpenCortex runtime over a structured stdin/stdout protocol."""
 
     def __init__(self, config: BackendHostConfig) -> None:
         self._config = config
@@ -215,7 +215,7 @@ class ReactBackendHost:
         )
 
     async def _handle_list_sessions(self) -> None:
-        from openharness.services.session_storage import list_session_snapshots
+        from opencortex.services.session_storage import list_session_snapshots
         import time as _time
 
         assert self._bundle is not None

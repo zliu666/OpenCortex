@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.config.paths import get_config_dir
-from openharness.config.settings import load_settings
-from openharness.skills.bundled import get_bundled_skills
-from openharness.skills.registry import SkillRegistry
-from openharness.skills.types import SkillDefinition
+from opencortex.config.paths import get_config_dir
+from opencortex.config.settings import load_settings
+from opencortex.skills.bundled import get_bundled_skills
+from opencortex.skills.registry import SkillRegistry
+from opencortex.skills.types import SkillDefinition
 
 
 def get_user_skills_dir() -> Path:
@@ -26,7 +26,7 @@ def load_skill_registry(cwd: str | Path | None = None) -> SkillRegistry:
     for skill in load_user_skills():
         registry.register(skill)
     if cwd is not None:
-        from openharness.plugins.loader import load_plugins
+        from opencortex.plugins.loader import load_plugins
 
         settings = load_settings()
         for plugin in load_plugins(settings, cwd):

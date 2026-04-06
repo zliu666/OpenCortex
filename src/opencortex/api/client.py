@@ -9,14 +9,14 @@ from typing import Any, AsyncIterator, Protocol
 
 from anthropic import APIError, APIStatusError, AsyncAnthropic
 
-from openharness.api.errors import (
+from opencortex.api.errors import (
     AuthenticationFailure,
-    OpenHarnessApiError,
+    OpenCortexApiError,
     RateLimitFailure,
     RequestFailure,
 )
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, assistant_message_from_api
+from opencortex.api.usage import UsageSnapshot
+from opencortex.engine.messages import ConversationMessage, assistant_message_from_api
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class AnthropicApiClient:
                 async for event in self._stream_once(request):
                     yield event
                 return  # Success
-            except OpenHarnessApiError:
+            except OpenCortexApiError:
                 raise  # Auth errors are not retried
             except Exception as exc:
                 last_error = exc
@@ -176,7 +176,7 @@ class AnthropicApiClient:
         )
 
 
-def _translate_api_error(exc: APIError) -> OpenHarnessApiError:
+def _translate_api_error(exc: APIError) -> OpenCortexApiError:
     name = exc.__class__.__name__
     if name in {"AuthenticationError", "PermissionDeniedError"}:
         return AuthenticationFailure(str(exc))

@@ -28,7 +28,7 @@ class ToolResult:
 
 
 class BaseTool(ABC):
-    """Base class for all OpenHarness tools."""
+    """Base class for all OpenCortex tools."""
 
     name: str
     description: str

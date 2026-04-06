@@ -9,7 +9,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field
 
-from openharness.config.paths import get_config_dir
+from opencortex.config.paths import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -907,7 +907,7 @@ def get_all_agent_definitions() -> list[AgentDefinition]:
 
     Merge order (last writer wins for same ``name``):
     1. Built-in agents
-    2. User agents (~/.openharness/agents/)
+    2. User agents (~/.opencortex/agents/)
     3. Plugin agents (loaded from active plugins)
 
     User definitions override built-ins with the same name; plugin definitions
@@ -926,8 +926,8 @@ def get_all_agent_definitions() -> list[AgentDefinition]:
 
     # 3. Plugin agents — loaded lazily to avoid import cycles
     try:
-        from openharness.plugins.loader import load_plugins  # noqa: PLC0415
-        from openharness.config.settings import load_settings  # noqa: PLC0415
+        from opencortex.plugins.loader import load_plugins  # noqa: PLC0415
+        from opencortex.config.settings import load_settings  # noqa: PLC0415
 
         settings = load_settings()
         import os  # noqa: PLC0415

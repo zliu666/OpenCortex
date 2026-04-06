@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openharness.plugins.types import LoadedPlugin
+from opencortex.plugins.types import LoadedPlugin
 
 
 def load_mcp_server_configs(settings, plugins: list[LoadedPlugin]) -> dict[str, object]:

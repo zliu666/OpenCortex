@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from openharness.config.settings import load_settings, save_settings
-from openharness.mcp.types import McpHttpServerConfig, McpStdioServerConfig, McpWebSocketServerConfig
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.config.settings import load_settings, save_settings
+from opencortex.mcp.types import McpHttpServerConfig, McpStdioServerConfig, McpWebSocketServerConfig
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class McpAuthToolInput(BaseModel):

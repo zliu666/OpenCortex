@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openharness.api.usage import UsageSnapshot
+from opencortex.api.usage import UsageSnapshot
 
 
 class CostTracker:

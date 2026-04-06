@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from openharness.mcp.client import McpClientManager
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.mcp.client import McpClientManager
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class ReadMcpResourceToolInput(BaseModel):

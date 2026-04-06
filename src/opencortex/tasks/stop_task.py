@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from openharness.tasks.manager import get_task_manager
-from openharness.tasks.types import TaskRecord
+from opencortex.tasks.manager import get_task_manager
+from opencortex.tasks.types import TaskRecord
 
 
 async def stop_task(task_id: str) -> TaskRecord:

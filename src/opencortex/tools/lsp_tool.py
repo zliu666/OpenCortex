@@ -7,14 +7,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from openharness.services.lsp import (
+from opencortex.services.lsp import (
     find_references,
     go_to_definition,
     hover,
     list_document_symbols,
     workspace_symbol_search,
 )
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class LspToolInput(BaseModel):

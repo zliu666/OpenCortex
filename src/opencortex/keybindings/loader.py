@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.config.paths import get_config_dir
-from openharness.keybindings.parser import parse_keybindings
-from openharness.keybindings.resolver import resolve_keybindings
+from opencortex.config.paths import get_config_dir
+from opencortex.keybindings.parser import parse_keybindings
+from opencortex.keybindings.resolver import resolve_keybindings
 
 
 def get_keybindings_path() -> Path:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from openharness.services.cron import upsert_cron_job, validate_cron_expression
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.services.cron import upsert_cron_job, validate_cron_expression
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class CronCreateToolInput(BaseModel):

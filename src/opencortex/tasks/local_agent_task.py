@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.tasks.manager import get_task_manager
-from openharness.tasks.types import TaskRecord
+from opencortex.tasks.manager import get_task_manager
+from opencortex.tasks.types import TaskRecord
 
 
 async def spawn_local_agent_task(

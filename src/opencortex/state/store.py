@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 
-from openharness.state.app_state import AppState
+from opencortex.state.app_state import AppState
 
 
 Listener = Callable[[AppState], None]

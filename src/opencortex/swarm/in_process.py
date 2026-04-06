@@ -16,7 +16,7 @@ Architecture summary
 * :func:`start_in_process_teammate` – the actual coroutine that sets up
   context, drives the query engine, and cleans up on exit.
 * :class:`InProcessBackend` – implements
-  :class:`~openharness.swarm.types.TeammateExecutor` and manages the dict of
+  :class:`~opencortex.swarm.types.TeammateExecutor` and manages the dict of
   live asyncio Tasks.
 """
 
@@ -31,11 +31,11 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from openharness.swarm.mailbox import (
+from opencortex.swarm.mailbox import (
     TeammateMailbox,
     create_idle_notification,
 )
-from openharness.swarm.types import (
+from opencortex.swarm.types import (
     BackendType,
     SpawnResult,
     TeammateMessage,
@@ -207,7 +207,7 @@ async def start_in_process_teammate(
 
     1. Binds a fresh :class:`TeammateContext` to the current async context.
     2. Drives the query engine loop (reusing
-       :func:`~openharness.engine.query.run_query`).
+       :func:`~opencortex.engine.query.run_query`).
     3. Polls the teammate's mailbox between turns for incoming messages /
        shutdown requests.  Any ``user_message`` items are pushed into the
        context's :attr:`~TeammateContext.message_queue` and injected as
@@ -225,7 +225,7 @@ async def start_in_process_teammate(
         Dual-signal abort controller for this teammate.
     query_context:
         Optional pre-built
-        :class:`~openharness.engine.query.QueryContext`.  When *None* this
+        :class:`~opencortex.engine.query.QueryContext`.  When *None* this
         function runs a stub that respects the cancel signals so tests and
         direct invocations still work.
     """
@@ -338,7 +338,7 @@ async def _run_query_loop(
     ctx: TeammateContext,
     mailbox: TeammateMailbox,
 ) -> None:
-    """Drive :func:`~openharness.engine.query.run_query` until done or cancelled.
+    """Drive :func:`~opencortex.engine.query.run_query` until done or cancelled.
 
     Between turns we:
     - Drain the mailbox for shutdown requests and user messages.
@@ -347,8 +347,8 @@ async def _run_query_loop(
     - Track tool_use_count and total_tokens.
     """
     # Deferred import to avoid circular dependencies at module load time.
-    from openharness.engine.query import run_query
-    from openharness.engine.messages import ConversationMessage
+    from opencortex.engine.query import run_query
+    from opencortex.engine.messages import ConversationMessage
 
     messages: list[ConversationMessage] = [
         ConversationMessage.from_user_text(config.prompt)
@@ -509,7 +509,7 @@ class InProcessBackend:
             )
         agent_name, team_name = agent_id.split("@", 1)
 
-        from openharness.swarm.mailbox import MailboxMessage
+        from opencortex.swarm.mailbox import MailboxMessage
 
         msg = MailboxMessage(
             id=str(uuid.uuid4()),

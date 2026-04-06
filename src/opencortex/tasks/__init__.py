@@ -1,10 +1,10 @@
 """Task exports."""
 
-from openharness.tasks.local_agent_task import spawn_local_agent_task
-from openharness.tasks.local_shell_task import spawn_shell_task
-from openharness.tasks.manager import BackgroundTaskManager, get_task_manager
-from openharness.tasks.stop_task import stop_task
-from openharness.tasks.types import TaskRecord, TaskStatus, TaskType
+from opencortex.tasks.local_agent_task import spawn_local_agent_task
+from opencortex.tasks.local_shell_task import spawn_shell_task
+from opencortex.tasks.manager import BackgroundTaskManager, get_task_manager
+from opencortex.tasks.stop_task import stop_task
+from opencortex.tasks.types import TaskRecord, TaskStatus, TaskType
 
 __all__ = [
     "BackgroundTaskManager",

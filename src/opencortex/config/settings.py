@@ -1,9 +1,9 @@
-"""Settings model and loading logic for OpenHarness.
+"""Settings model and loading logic for OpenCortex.
 
 Settings are resolved with the following precedence (highest first):
 1. CLI arguments
 2. Environment variables (ANTHROPIC_API_KEY, OPENHARNESS_MODEL, etc.)
-3. Config file (~/.openharness/settings.json)
+3. Config file (~/.opencortex/settings.json)
 4. Defaults
 """
 
@@ -16,9 +16,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from openharness.hooks.schemas import HookDefinition
-from openharness.mcp.types import McpServerConfig
-from openharness.permissions.modes import PermissionMode
+from opencortex.hooks.schemas import HookDefinition
+from opencortex.mcp.types import McpServerConfig
+from opencortex.permissions.modes import PermissionMode
 
 
 class PathRuleConfig(BaseModel):
@@ -47,7 +47,7 @@ class MemorySettings(BaseModel):
 
 
 class Settings(BaseModel):
-    """Main settings model for OpenHarness."""
+    """Main settings model for OpenCortex."""
 
     # API configuration
     api_key: str = ""
@@ -82,6 +82,11 @@ class Settings(BaseModel):
         if self.api_key:
             return self.api_key
 
+        # 智谱 API Key
+        zhipu_key = os.environ.get("ZHIPU_API_KEY", "")
+        if zhipu_key:
+            return zhipu_key
+
         env_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if env_key:
             return env_key
@@ -92,9 +97,8 @@ class Settings(BaseModel):
             return openai_key
 
         raise ValueError(
-            "No API key found. Set ANTHROPIC_API_KEY (or OPENAI_API_KEY for openai-format "
-            "providers) environment variable, or configure api_key in "
-            "~/.openharness/settings.json"
+            "No API key found. Set ZHIPU_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY "
+            "environment variable, or configure api_key in ~/.opencortex/settings.json"
         )
 
     def merge_cli_overrides(self, **overrides: Any) -> Settings:
@@ -106,11 +110,22 @@ class Settings(BaseModel):
 def _apply_env_overrides(settings: Settings) -> Settings:
     """Apply supported environment variable overrides over loaded settings."""
     updates: dict[str, Any] = {}
-    model = os.environ.get("ANTHROPIC_MODEL") or os.environ.get("OPENHARNESS_MODEL")
+    
+    # 模型名：支持智谱 GLM 系列
+    model = (
+        os.environ.get("ZHIPU_MODEL")
+        or os.environ.get("ANTHROPIC_MODEL") 
+        or os.environ.get("OPENHARNESS_MODEL")
+    )
     if model:
         updates["model"] = model
 
-    base_url = os.environ.get("ANTHROPIC_BASE_URL") or os.environ.get("OPENHARNESS_BASE_URL")
+    # Base URL：支持智谱
+    base_url = (
+        os.environ.get("ZHIPU_BASE_URL")
+        or os.environ.get("ANTHROPIC_BASE_URL") 
+        or os.environ.get("OPENHARNESS_BASE_URL")
+    )
     if base_url:
         updates["base_url"] = base_url
 
@@ -118,7 +133,12 @@ def _apply_env_overrides(settings: Settings) -> Settings:
     if max_tokens:
         updates["max_tokens"] = int(max_tokens)
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    # API Key：支持智谱
+    api_key = (
+        os.environ.get("ZHIPU_API_KEY")
+        or os.environ.get("ANTHROPIC_API_KEY") 
+        or os.environ.get("OPENAI_API_KEY")
+    )
     if api_key:
         updates["api_key"] = api_key
 
@@ -141,7 +161,7 @@ def load_settings(config_path: Path | None = None) -> Settings:
         Settings instance with file values merged over defaults.
     """
     if config_path is None:
-        from openharness.config.paths import get_config_file_path
+        from opencortex.config.paths import get_config_file_path
 
         config_path = get_config_file_path()
 
@@ -160,7 +180,7 @@ def save_settings(settings: Settings, config_path: Path | None = None) -> None:
         config_path: Path to write. If None, uses the default location.
     """
     if config_path is None:
-        from openharness.config.paths import get_config_file_path
+        from opencortex.config.paths import get_config_file_path
 
         config_path = get_config_file_path()
 

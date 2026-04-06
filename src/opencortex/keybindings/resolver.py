@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openharness.keybindings.default_bindings import DEFAULT_KEYBINDINGS
+from opencortex.keybindings.default_bindings import DEFAULT_KEYBINDINGS
 
 
 def resolve_keybindings(overrides: dict[str, str] | None = None) -> dict[str, str]:

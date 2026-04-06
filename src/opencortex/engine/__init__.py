@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from openharness.engine.messages import (
+    from opencortex.engine.messages import (
         ConversationMessage,
         TextBlock,
         ToolResultBlock,
         ToolUseBlock,
     )
-    from openharness.engine.query_engine import QueryEngine
-    from openharness.engine.stream_events import (
+    from opencortex.engine.query_engine import QueryEngine
+    from opencortex.engine.stream_events import (
         AssistantTextDelta,
         AssistantTurnComplete,
         ToolExecutionCompleted,
@@ -34,7 +34,7 @@ __all__ = [
 
 def __getattr__(name: str):
     if name in {"ConversationMessage", "TextBlock", "ToolResultBlock", "ToolUseBlock"}:
-        from openharness.engine.messages import (
+        from opencortex.engine.messages import (
             ConversationMessage,
             TextBlock,
             ToolResultBlock,
@@ -49,7 +49,7 @@ def __getattr__(name: str):
         }[name]
 
     if name == "QueryEngine":
-        from openharness.engine.query_engine import QueryEngine
+        from opencortex.engine.query_engine import QueryEngine
 
         return QueryEngine
 
@@ -59,7 +59,7 @@ def __getattr__(name: str):
         "ToolExecutionCompleted",
         "ToolExecutionStarted",
     }:
-        from openharness.engine.stream_events import (
+        from opencortex.engine.stream_events import (
             AssistantTextDelta,
             AssistantTurnComplete,
             ToolExecutionCompleted,

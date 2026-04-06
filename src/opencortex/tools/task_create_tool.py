@@ -6,8 +6,8 @@ import os
 
 from pydantic import BaseModel, Field
 
-from openharness.tasks.manager import get_task_manager
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.tasks.manager import get_task_manager
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class TaskCreateToolInput(BaseModel):

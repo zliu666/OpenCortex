@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from openharness.hooks.events import HookEvent
-from openharness.hooks.schemas import HookDefinition
+from opencortex.hooks.events import HookEvent
+from opencortex.hooks.schemas import HookDefinition
 
 
 class HookRegistry:

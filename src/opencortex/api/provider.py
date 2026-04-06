@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from openharness.config.settings import Settings
+from opencortex.config.settings import Settings
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,16 @@ def detect_provider(settings: Settings) -> ProviderInfo:
     """Infer the active provider and rough capability set."""
     base_url = (settings.base_url or "").lower()
     model = settings.model.lower()
+    
+    # 智谱 AI (GLM 系列)
+    if "zhipuai" in base_url or "bigmodel" in base_url or model.startswith("glm"):
+        return ProviderInfo(
+            name="zhipu-openai-compatible",
+            auth_kind="api_key",
+            voice_supported=False,
+            voice_reason="voice mode is not supported for Zhipu AI providers",
+        )
+    
     if "moonshot" in base_url or model.startswith("kimi"):
         return ProviderInfo(
             name="moonshot-anthropic-compatible",

@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import json
 
-from openharness.bridge.types import WorkSecret
+from opencortex.bridge.types import WorkSecret
 
 
 def encode_work_secret(secret: WorkSecret) -> str:

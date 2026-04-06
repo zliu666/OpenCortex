@@ -9,7 +9,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.types import CallToolResult, ReadResourceResult
 
-from openharness.mcp.types import (
+from opencortex.mcp.types import (
     McpConnectionStatus,
     McpResourceInfo,
     McpStdioServerConfig,

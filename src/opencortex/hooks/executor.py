@@ -12,18 +12,18 @@ from typing import Any
 
 import httpx
 
-from openharness.api.client import ApiMessageCompleteEvent, ApiMessageRequest, SupportsStreamingMessages
-from openharness.engine.messages import ConversationMessage
-from openharness.hooks.events import HookEvent
-from openharness.hooks.loader import HookRegistry
-from openharness.hooks.schemas import (
+from opencortex.api.client import ApiMessageCompleteEvent, ApiMessageRequest, SupportsStreamingMessages
+from opencortex.engine.messages import ConversationMessage
+from opencortex.hooks.events import HookEvent
+from opencortex.hooks.loader import HookRegistry
+from opencortex.hooks.schemas import (
     AgentHookDefinition,
     CommandHookDefinition,
     HookDefinition,
     HttpHookDefinition,
     PromptHookDefinition,
 )
-from openharness.hooks.types import AggregatedHookResult, HookResult
+from opencortex.hooks.types import AggregatedHookResult, HookResult
 
 
 @dataclass
@@ -155,7 +155,7 @@ class HookExecutor:
     ) -> HookResult:
         prompt = _inject_arguments(hook.prompt, payload)
         prefix = (
-            "You are validating whether a hook condition passes in OpenHarness. "
+            "You are validating whether a hook condition passes in OpenCortex. "
             "Return strict JSON: {\"ok\": true} or {\"ok\": false, \"reason\": \"...\"}."
         )
         if agent_mode:

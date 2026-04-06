@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from openharness.memory.scan import scan_memory_files
-from openharness.memory.types import MemoryHeader
+from opencortex.memory.scan import scan_memory_files
+from opencortex.memory.types import MemoryHeader
 
 
 def find_relevant_memories(

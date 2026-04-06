@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.memory.paths import get_project_memory_dir
-from openharness.memory.types import MemoryHeader
+from opencortex.memory.paths import get_project_memory_dir
+from opencortex.memory.types import MemoryHeader
 
 
 def scan_memory_files(cwd: str | Path, *, max_files: int = 50) -> list[MemoryHeader]:

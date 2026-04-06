@@ -1,4 +1,4 @@
-"""Default Textual terminal UI for OpenHarness."""
+"""Default Textual terminal UI for OpenCortex."""
 
 from __future__ import annotations
 
@@ -14,17 +14,17 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Footer, Header, Input, RichLog, Static
 
-from openharness.api.client import SupportsStreamingMessages
-from openharness.config.settings import load_settings, save_settings
-from openharness.engine.stream_events import (
+from opencortex.api.client import SupportsStreamingMessages
+from opencortex.config.settings import load_settings, save_settings
+from opencortex.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
     StreamEvent,
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from openharness.tasks import get_task_manager
-from openharness.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
+from opencortex.tasks import get_task_manager
+from opencortex.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
 
 
 @dataclass(frozen=True)
@@ -130,7 +130,7 @@ class QuestionScreen(ModalScreen[str]):
         self.dismiss("")
 
 
-class OpenHarnessTerminalApp(App[None]):
+class OpenCortexTerminalApp(App[None]):
     """Terminal-first Textual UI."""
 
     CSS = """
@@ -229,7 +229,7 @@ class OpenHarnessTerminalApp(App[None]):
             with Vertical(id="transcript-column"):
                 yield RichLog(id="transcript", wrap=True, highlight=True, markup=True)
                 yield Static("Ready.", id="current-response")
-                yield Input(placeholder="Ask OpenHarness or enter a /command", id="composer")
+                yield Input(placeholder="Ask OpenCortex or enter a /command", id="composer")
             with Vertical(id="side-column"):
                 yield Static("Starting...", id="status-bar")
                 yield Static("No tasks yet.", id="tasks-panel")

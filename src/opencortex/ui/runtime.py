@@ -6,26 +6,26 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable
 
-from openharness.api.client import AnthropicApiClient, SupportsStreamingMessages
-from openharness.api.openai_client import OpenAICompatibleClient
-from openharness.api.provider import auth_status, detect_provider
-from openharness.bridge import get_bridge_manager
-from openharness.commands import CommandContext, CommandResult, create_default_command_registry
-from openharness.config import get_config_file_path, load_settings
-from openharness.engine import QueryEngine
-from openharness.engine.messages import ConversationMessage
-from openharness.engine.stream_events import StreamEvent
-from openharness.hooks import HookEvent, HookExecutionContext, HookExecutor, load_hook_registry
-from openharness.hooks.hot_reload import HookReloader
-from openharness.mcp.client import McpClientManager
-from openharness.mcp.config import load_mcp_server_configs
-from openharness.permissions import PermissionChecker
-from openharness.plugins import load_plugins
-from openharness.prompts import build_runtime_system_prompt
-from openharness.state import AppState, AppStateStore
-from openharness.services.session_storage import save_session_snapshot
-from openharness.tools import ToolRegistry, create_default_tool_registry
-from openharness.keybindings import load_keybindings
+from opencortex.api.client import AnthropicApiClient, SupportsStreamingMessages
+from opencortex.api.openai_client import OpenAICompatibleClient
+from opencortex.api.provider import auth_status, detect_provider
+from opencortex.bridge import get_bridge_manager
+from opencortex.commands import CommandContext, CommandResult, create_default_command_registry
+from opencortex.config import get_config_file_path, load_settings
+from opencortex.engine import QueryEngine
+from opencortex.engine.messages import ConversationMessage
+from opencortex.engine.stream_events import StreamEvent
+from opencortex.hooks import HookEvent, HookExecutionContext, HookExecutor, load_hook_registry
+from opencortex.hooks.hot_reload import HookReloader
+from opencortex.mcp.client import McpClientManager
+from opencortex.mcp.config import load_mcp_server_configs
+from opencortex.permissions import PermissionChecker
+from opencortex.plugins import load_plugins
+from opencortex.prompts import build_runtime_system_prompt
+from opencortex.state import AppState, AppStateStore
+from opencortex.services.session_storage import save_session_snapshot
+from opencortex.tools import ToolRegistry, create_default_tool_registry
+from opencortex.keybindings import load_keybindings
 
 PermissionPrompt = Callable[[str, str], Awaitable[bool]]
 AskUserPrompt = Callable[[str], Awaitable[str]]
@@ -101,7 +101,7 @@ async def build_runtime(
     ask_user_prompt: AskUserPrompt | None = None,
     restore_messages: list[dict] | None = None,
 ) -> RuntimeBundle:
-    """Build the shared runtime for an OpenHarness session."""
+    """Build the shared runtime for an OpenCortex session."""
     settings = load_settings().merge_cli_overrides(
         model=model,
         base_url=base_url,
@@ -301,8 +301,8 @@ async def _render_command_result(
         await clear_output()
     if result.replay_messages and render_event is not None:
         # Replay restored conversation messages as transcript events
-        from openharness.engine.stream_events import AssistantTextDelta, AssistantTurnComplete
-        from openharness.api.usage import UsageSnapshot
+        from opencortex.engine.stream_events import AssistantTextDelta, AssistantTurnComplete
+        from opencortex.api.usage import UsageSnapshot
 
         await clear_output()
         await print_system("Session restored:")

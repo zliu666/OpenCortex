@@ -1,6 +1,6 @@
 """Command registry exports."""
 
-from openharness.commands.registry import (
+from opencortex.commands.registry import (
     CommandContext,
     CommandRegistry,
     CommandResult,

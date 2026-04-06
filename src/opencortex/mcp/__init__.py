@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from openharness.mcp.client import McpClientManager
-    from openharness.mcp.types import (
+    from opencortex.mcp.client import McpClientManager
+    from opencortex.mcp.types import (
         McpConnectionStatus,
         McpHttpServerConfig,
         McpJsonConfig,
@@ -33,11 +33,11 @@ __all__ = [
 
 def __getattr__(name: str):
     if name == "McpClientManager":
-        from openharness.mcp.client import McpClientManager
+        from opencortex.mcp.client import McpClientManager
 
         return McpClientManager
     if name == "load_mcp_server_configs":
-        from openharness.mcp.config import load_mcp_server_configs
+        from opencortex.mcp.config import load_mcp_server_configs
 
         return load_mcp_server_configs
     if name in {
@@ -50,7 +50,7 @@ def __getattr__(name: str):
         "McpToolInfo",
         "McpWebSocketServerConfig",
     }:
-        from openharness.mcp.types import (
+        from opencortex.mcp.types import (
             McpConnectionStatus,
             McpHttpServerConfig,
             McpJsonConfig,

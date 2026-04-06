@@ -6,7 +6,7 @@ import asyncio
 
 from pydantic import BaseModel, Field
 
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class SleepToolInput(BaseModel):

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from openharness.services.cron import load_cron_jobs
-from openharness.services.cron_scheduler import is_scheduler_running
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.services.cron import load_cron_jobs
+from opencortex.services.cron_scheduler import is_scheduler_running
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class CronListToolInput(BaseModel):

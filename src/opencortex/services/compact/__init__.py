@@ -13,14 +13,14 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from openharness.engine.messages import (
+from opencortex.engine.messages import (
     ConversationMessage,
     ContentBlock,
     TextBlock,
     ToolResultBlock,
     ToolUseBlock,
 )
-from openharness.services.token_estimation import estimate_tokens
+from opencortex.services.token_estimation import estimate_tokens
 
 log = logging.getLogger(__name__)
 
@@ -319,7 +319,7 @@ async def compact_conversation(
     Returns:
         The new compacted message list.
     """
-    from openharness.api.client import ApiMessageRequest, ApiMessageCompleteEvent
+    from opencortex.api.client import ApiMessageRequest, ApiMessageCompleteEvent
 
     if len(messages) <= preserve_recent:
         return list(messages)

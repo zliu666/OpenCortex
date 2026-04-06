@@ -1,6 +1,6 @@
 """Swarm backend abstraction for teammate execution."""
 
-from openharness.swarm.mailbox import (
+from opencortex.swarm.mailbox import (
     MailboxMessage,
     TeammateMailbox,
     create_idle_notification,
@@ -9,7 +9,7 @@ from openharness.swarm.mailbox import (
     get_agent_mailbox_dir,
     get_team_dir,
 )
-from openharness.swarm.permission_sync import (
+from opencortex.swarm.permission_sync import (
     SwarmPermissionRequest,
     SwarmPermissionResponse,
     create_permission_request,
@@ -18,9 +18,9 @@ from openharness.swarm.permission_sync import (
     send_permission_request,
     send_permission_response,
 )
-from openharness.swarm.registry import BackendRegistry, get_backend_registry
-from openharness.swarm.subprocess_backend import SubprocessBackend
-from openharness.swarm.types import (
+from opencortex.swarm.registry import BackendRegistry, get_backend_registry
+from opencortex.swarm.subprocess_backend import SubprocessBackend
+from opencortex.swarm.types import (
     BackendType,
     SpawnResult,
     TeammateExecutor,

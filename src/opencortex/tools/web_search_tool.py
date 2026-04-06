@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import httpx
 from pydantic import BaseModel, Field
 
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class WebSearchToolInput(BaseModel):
@@ -46,7 +46,7 @@ class WebSearchTool(BaseTool):
                 response = await client.get(
                     endpoint,
                     params={"q": arguments.query},
-                    headers={"User-Agent": "OpenHarness/0.1"},
+                    headers={"User-Agent": "OpenCortex/0.1"},
                 )
                 response.raise_for_status()
         except httpx.HTTPError as exc:

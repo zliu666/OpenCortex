@@ -8,8 +8,8 @@ import platform
 import shutil
 from typing import TYPE_CHECKING, Any
 
-from openharness.swarm.spawn_utils import is_tmux_available
-from openharness.swarm.types import BackendDetectionResult, BackendType, TeammateExecutor
+from opencortex.swarm.spawn_utils import is_tmux_available
+from opencortex.swarm.types import BackendDetectionResult, BackendType, TeammateExecutor
 
 if TYPE_CHECKING:
     pass
@@ -275,7 +275,7 @@ class BackendRegistry:
                      auto-detects the best available backend.
 
         Returns:
-            The registered :class:`~openharness.swarm.types.TeammateExecutor`.
+            The registered :class:`~opencortex.swarm.types.TeammateExecutor`.
 
         Raises:
             KeyError: If the requested backend has not been registered.
@@ -378,8 +378,8 @@ class BackendRegistry:
 
     def _register_defaults(self) -> None:
         """Register built-in backends that are unconditionally available."""
-        from openharness.swarm.subprocess_backend import SubprocessBackend
-        from openharness.swarm.in_process import InProcessBackend
+        from opencortex.swarm.subprocess_backend import SubprocessBackend
+        from opencortex.swarm.in_process import InProcessBackend
 
         self._backends["subprocess"] = SubprocessBackend()
         self._backends["in_process"] = InProcessBackend()

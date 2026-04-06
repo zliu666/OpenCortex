@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from openharness.plugins.schemas import PluginManifest
-    from openharness.plugins.types import LoadedPlugin
+    from opencortex.plugins.schemas import PluginManifest
+    from opencortex.plugins.types import LoadedPlugin
 
 __all__ = [
     "LoadedPlugin",
@@ -22,7 +22,7 @@ __all__ = [
 
 def __getattr__(name: str):
     if name in {"discover_plugin_paths", "get_project_plugins_dir", "get_user_plugins_dir", "load_plugins"}:
-        from openharness.plugins.loader import (
+        from opencortex.plugins.loader import (
             discover_plugin_paths,
             get_project_plugins_dir,
             get_user_plugins_dir,
@@ -36,18 +36,18 @@ def __getattr__(name: str):
             "load_plugins": load_plugins,
         }[name]
     if name in {"install_plugin_from_path", "uninstall_plugin"}:
-        from openharness.plugins.installer import install_plugin_from_path, uninstall_plugin
+        from opencortex.plugins.installer import install_plugin_from_path, uninstall_plugin
 
         return {
             "install_plugin_from_path": install_plugin_from_path,
             "uninstall_plugin": uninstall_plugin,
         }[name]
     if name == "PluginManifest":
-        from openharness.plugins.schemas import PluginManifest
+        from opencortex.plugins.schemas import PluginManifest
 
         return PluginManifest
     if name == "LoadedPlugin":
-        from openharness.plugins.types import LoadedPlugin
+        from opencortex.plugins.types import LoadedPlugin
 
         return LoadedPlugin
     raise AttributeError(name)

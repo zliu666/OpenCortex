@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from openharness.mcp.types import McpServerConfig
-from openharness.plugins.schemas import PluginManifest
-from openharness.skills.types import SkillDefinition
+from opencortex.mcp.types import McpServerConfig
+from opencortex.plugins.schemas import PluginManifest
+from opencortex.skills.types import SkillDefinition
 
 
 @dataclass(frozen=True)

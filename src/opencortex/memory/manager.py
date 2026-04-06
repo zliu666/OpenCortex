@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from re import sub
 
-from openharness.memory.paths import get_memory_entrypoint, get_project_memory_dir
+from opencortex.memory.paths import get_memory_entrypoint, get_project_memory_dir
 
 
 def list_memory_files(cwd: str | Path) -> list[Path]:

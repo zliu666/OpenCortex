@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from openharness.skills import load_skill_registry
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.skills import load_skill_registry
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class SkillToolInput(BaseModel):

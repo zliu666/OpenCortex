@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.memory.paths import get_memory_entrypoint, get_project_memory_dir
+from opencortex.memory.paths import get_memory_entrypoint, get_project_memory_dir
 
 
 def load_memory_prompt(cwd: str | Path, *, max_entrypoint_lines: int = 200) -> str | None:

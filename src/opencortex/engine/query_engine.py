@@ -5,14 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import AsyncIterator
 
-from openharness.api.client import SupportsStreamingMessages
-from openharness.engine.cost_tracker import CostTracker
-from openharness.engine.messages import ConversationMessage
-from openharness.engine.query import AskUserPrompt, PermissionPrompt, QueryContext, run_query
-from openharness.engine.stream_events import StreamEvent
-from openharness.hooks import HookExecutor
-from openharness.permissions.checker import PermissionChecker
-from openharness.tools.base import ToolRegistry
+from opencortex.api.client import SupportsStreamingMessages
+from opencortex.engine.cost_tracker import CostTracker
+from opencortex.engine.messages import ConversationMessage
+from opencortex.engine.query import AskUserPrompt, PermissionPrompt, QueryContext, run_query
+from opencortex.engine.stream_events import StreamEvent
+from opencortex.hooks import HookExecutor
+from opencortex.permissions.checker import PermissionChecker
+from opencortex.tools.base import ToolRegistry
 
 
 class QueryEngine:

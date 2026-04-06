@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from openharness.services.cron import delete_cron_job
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.services.cron import delete_cron_job
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class CronDeleteToolInput(BaseModel):

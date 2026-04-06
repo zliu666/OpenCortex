@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from openharness.config.settings import load_settings, save_settings
-from openharness.permissions import PermissionMode
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.config.settings import load_settings, save_settings
+from opencortex.permissions import PermissionMode
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class ExitPlanModeToolInput(BaseModel):

@@ -1,6 +1,6 @@
-"""Entry point for `python -m openharness`."""
+"""Entry point for `python -m opencortex`."""
 
-from openharness.cli import app
+from opencortex.cli import app
 
 if __name__ == "__main__":
     app()

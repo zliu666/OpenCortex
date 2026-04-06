@@ -8,7 +8,7 @@ from typing import Any
 
 from croniter import croniter
 
-from openharness.config.paths import get_cron_registry_path
+from opencortex.config.paths import get_cron_registry_path
 
 
 def load_cron_jobs() -> list[dict[str, Any]]:

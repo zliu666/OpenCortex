@@ -6,11 +6,11 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from openharness.coordinator.agent_definitions import get_agent_definition
-from openharness.coordinator.coordinator_mode import get_team_registry
-from openharness.swarm.registry import get_backend_registry
-from openharness.swarm.types import TeammateSpawnConfig
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.coordinator.agent_definitions import get_agent_definition
+from opencortex.coordinator.coordinator_mode import get_team_registry
+from opencortex.swarm.registry import get_backend_registry
+from opencortex.swarm.types import TeammateSpawnConfig
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 logger = logging.getLogger(__name__)
 

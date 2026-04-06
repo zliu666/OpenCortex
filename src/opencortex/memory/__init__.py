@@ -1,10 +1,10 @@
 """Memory exports."""
 
-from openharness.memory.memdir import load_memory_prompt
-from openharness.memory.manager import add_memory_entry, list_memory_files, remove_memory_entry
-from openharness.memory.paths import get_memory_entrypoint, get_project_memory_dir
-from openharness.memory.scan import scan_memory_files
-from openharness.memory.search import find_relevant_memories
+from opencortex.memory.memdir import load_memory_prompt
+from opencortex.memory.manager import add_memory_entry, list_memory_files, remove_memory_entry
+from opencortex.memory.paths import get_memory_entrypoint, get_project_memory_dir
+from opencortex.memory.scan import scan_memory_files
+from opencortex.memory.search import find_relevant_memories
 
 __all__ = [
     "add_memory_entry",

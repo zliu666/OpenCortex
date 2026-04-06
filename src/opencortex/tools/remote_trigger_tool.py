@@ -7,8 +7,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from openharness.services.cron import get_cron_job
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.services.cron import get_cron_job
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class RemoteTriggerToolInput(BaseModel):

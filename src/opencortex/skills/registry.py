@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openharness.skills.types import SkillDefinition
+from opencortex.skills.types import SkillDefinition
 
 
 class SkillRegistry:

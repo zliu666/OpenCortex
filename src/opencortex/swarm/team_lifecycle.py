@@ -1,7 +1,7 @@
-"""Persistent team lifecycle management for OpenHarness swarms.
+"""Persistent team lifecycle management for OpenCortex swarms.
 
 Teams are stored as JSON files on disk:
-    ~/.openharness/teams/<name>/team.json
+    ~/.opencortex/teams/<name>/team.json
 
 This module provides TeamMember, TeamFile, AllowedPath, TeamLifecycleManager
 and a full set of CRUD helpers matching the TS teamHelpers.ts API.
@@ -22,8 +22,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-from openharness.swarm.mailbox import get_team_dir
-from openharness.swarm.types import BackendType
+from opencortex.swarm.mailbox import get_team_dir
+from opencortex.swarm.types import BackendType
 
 
 # ---------------------------------------------------------------------------
@@ -633,9 +633,9 @@ async def _kill_orphaned_teammate_panes(team_name: str) -> None:
 
     Mirrors TS ``killOrphanedTeammatePanes`` in teamHelpers.ts.
     """
-    from openharness.swarm.registry import get_backend_registry
-    from openharness.swarm.spawn_utils import is_inside_tmux
-    from openharness.swarm.types import is_pane_backend
+    from opencortex.swarm.registry import get_backend_registry
+    from opencortex.swarm.spawn_utils import is_inside_tmux
+    from opencortex.swarm.types import is_pane_backend
 
     team_file = read_team_file(team_name)
     if not team_file:
@@ -780,7 +780,7 @@ async def cleanup_team_directories(team_name: str) -> None:
 class TeamLifecycleManager:
     """Manage the on-disk lifecycle of swarm teams.
 
-    Persists team metadata to ``~/.openharness/teams/<name>/team.json``.
+    Persists team metadata to ``~/.opencortex/teams/<name>/team.json``.
     Integrates with the mailbox system's directory layout — the team
     directory created here is the same one that :class:`TeammateMailbox`
     uses, so agents can be added and messaged without separate setup.
@@ -834,8 +834,8 @@ class TeamLifecycleManager:
             return None
 
     def list_teams(self) -> list[TeamFile]:
-        """Return all teams found in ``~/.openharness/teams/``, sorted by name."""
-        base = Path.home() / ".openharness" / "teams"
+        """Return all teams found in ``~/.opencortex/teams/``, sorted by name."""
+        base = Path.home() / ".opencortex" / "teams"
         if not base.exists():
             return []
 

@@ -1,15 +1,15 @@
-"""Configuration system for OpenHarness.
+"""Configuration system for OpenCortex.
 
 Provides settings management, path resolution, and API key handling.
 """
 
-from openharness.config.paths import (
+from opencortex.config.paths import (
     get_config_dir,
     get_config_file_path,
     get_data_dir,
     get_logs_dir,
 )
-from openharness.config.settings import Settings, load_settings
+from opencortex.config.settings import Settings, load_settings
 
 __all__ = [
     "Settings",

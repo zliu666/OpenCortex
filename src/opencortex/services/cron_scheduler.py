@@ -19,8 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from openharness.config.paths import get_data_dir, get_logs_dir
-from openharness.services.cron import (
+from opencortex.config.paths import get_data_dir, get_logs_dir
+from opencortex.services.cron import (
     load_cron_jobs,
     mark_job_run,
     validate_cron_expression,

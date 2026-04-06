@@ -7,7 +7,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
 
-from openharness.engine.stream_events import (
+from opencortex.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
     StreamEvent,

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.config.paths import get_project_issue_file, get_project_pr_comments_file
-from openharness.config.settings import Settings
-from openharness.memory import find_relevant_memories, load_memory_prompt
-from openharness.prompts.claudemd import load_claude_md_prompt
-from openharness.prompts.system_prompt import build_system_prompt
-from openharness.skills.loader import load_skill_registry
+from opencortex.config.paths import get_project_issue_file, get_project_pr_comments_file
+from opencortex.config.settings import Settings
+from opencortex.memory import find_relevant_memories, load_memory_prompt
+from opencortex.prompts.claudemd import load_claude_md_prompt
+from opencortex.prompts.system_prompt import build_system_prompt
+from opencortex.skills.loader import load_skill_registry
 
 
 def _build_skills_section(cwd: str | Path) -> str | None:

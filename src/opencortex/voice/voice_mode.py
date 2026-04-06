@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from dataclasses import dataclass
 
-from openharness.api.provider import ProviderInfo
+from opencortex.api.provider import ProviderInfo
 
 
 @dataclass(frozen=True)

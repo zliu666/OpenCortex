@@ -7,7 +7,7 @@ import re
 import httpx
 from pydantic import BaseModel, Field
 
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class WebFetchToolInput(BaseModel):
@@ -28,7 +28,7 @@ class WebFetchTool(BaseTool):
         del context
         try:
             async with httpx.AsyncClient(follow_redirects=True, timeout=20.0) as client:
-                response = await client.get(arguments.url, headers={"User-Agent": "OpenHarness/0.1"})
+                response = await client.get(arguments.url, headers={"User-Agent": "OpenCortex/0.1"})
                 response.raise_for_status()
         except httpx.HTTPError as exc:
             return ToolResult(output=f"web_fetch failed: {exc}", is_error=True)

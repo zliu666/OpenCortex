@@ -1,7 +1,7 @@
-"""File-based async message queue for leader-worker communication in OpenHarness swarms.
+"""File-based async message queue for leader-worker communication in OpenCortex swarms.
 
 Each message is stored as an individual JSON file:
-    ~/.openharness/teams/<team>/agents/<agent_id>/inbox/<timestamp>_<message_id>.json
+    ~/.opencortex/teams/<team>/agents/<agent_id>/inbox/<timestamp>_<message_id>.json
 
 Atomic writes use a .tmp file followed by os.rename to prevent partial reads.
 """
@@ -80,14 +80,14 @@ class MailboxMessage:
 
 
 def get_team_dir(team_name: str) -> Path:
-    """Return ~/.openharness/teams/<team_name>/"""
-    base = Path.home() / ".openharness" / "teams" / team_name
+    """Return ~/.opencortex/teams/<team_name>/"""
+    base = Path.home() / ".opencortex" / "teams" / team_name
     base.mkdir(parents=True, exist_ok=True)
     return base
 
 
 def get_agent_mailbox_dir(team_name: str, agent_id: str) -> Path:
-    """Return ~/.openharness/teams/<team_name>/agents/<agent_id>/inbox/"""
+    """Return ~/.opencortex/teams/<team_name>/agents/<agent_id>/inbox/"""
     inbox = get_team_dir(team_name) / "agents" / agent_id / "inbox"
     inbox.mkdir(parents=True, exist_ok=True)
     return inbox

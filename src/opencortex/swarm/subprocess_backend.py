@@ -6,18 +6,18 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from openharness.swarm.spawn_utils import (
+from opencortex.swarm.spawn_utils import (
     build_inherited_cli_flags,
     build_inherited_env_vars,
     get_teammate_command,
 )
-from openharness.swarm.types import (
+from opencortex.swarm.types import (
     BackendType,
     SpawnResult,
     TeammateMessage,
     TeammateSpawnConfig,
 )
-from openharness.tasks.manager import get_task_manager
+from opencortex.tasks.manager import get_task_manager
 
 if TYPE_CHECKING:
     pass
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class SubprocessBackend:
     """TeammateExecutor that runs each teammate as a separate subprocess.
 
-    Uses the existing :class:`~openharness.tasks.manager.BackgroundTaskManager`
+    Uses the existing :class:`~opencortex.tasks.manager.BackgroundTaskManager`
     to create and manage the child processes, communicating via stdin/stdout.
     """
 
@@ -62,7 +62,7 @@ class SubprocessBackend:
         env_prefix = " ".join(f"{k}={v!r}" for k, v in extra_env.items())
 
         teammate_cmd = get_teammate_command()
-        cmd_parts = [teammate_cmd, "-m", "openharness"] + flags
+        cmd_parts = [teammate_cmd, "-m", "opencortex"] + flags
         command = f"{env_prefix} {' '.join(cmd_parts)}" if env_prefix else " ".join(cmd_parts)
 
         manager = get_task_manager()

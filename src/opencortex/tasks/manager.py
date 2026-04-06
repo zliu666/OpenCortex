@@ -10,8 +10,8 @@ from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
-from openharness.config.paths import get_tasks_dir
-from openharness.tasks.types import TaskRecord, TaskStatus, TaskType
+from opencortex.config.paths import get_tasks_dir
+from opencortex.tasks.types import TaskRecord, TaskStatus, TaskType
 
 
 class BackgroundTaskManager:
@@ -72,7 +72,7 @@ class BackgroundTaskManager:
                 raise ValueError(
                     "Local agent tasks require ANTHROPIC_API_KEY or an explicit command override"
                 )
-            cmd = ["python", "-m", "openharness", "--headless", "--api-key", effective_api_key]
+            cmd = ["python", "-m", "opencortex", "--headless", "--api-key", effective_api_key]
             if model:
                 cmd.extend(["--model", model])
             command = " ".join(shlex.quote(part) for part in cmd)

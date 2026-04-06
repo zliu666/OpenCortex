@@ -1,6 +1,6 @@
-"""Path resolution for OpenHarness configuration and data directories.
+"""Path resolution for OpenCortex configuration and data directories.
 
-Follows XDG-like conventions with ~/.openharness/ as the default base directory.
+Follows XDG-like conventions with ~/.opencortex/ as the default base directory.
 """
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-_DEFAULT_BASE_DIR = ".openharness"
+_DEFAULT_BASE_DIR = ".opencortex"
 _CONFIG_FILE_NAME = "settings.json"
 
 
@@ -17,7 +17,7 @@ def get_config_dir() -> Path:
 
     Resolution order:
     1. OPENHARNESS_CONFIG_DIR environment variable
-    2. ~/.openharness/
+    2. ~/.opencortex/
     """
     env_dir = os.environ.get("OPENHARNESS_CONFIG_DIR")
     if env_dir:
@@ -30,7 +30,7 @@ def get_config_dir() -> Path:
 
 
 def get_config_file_path() -> Path:
-    """Return the path to the main settings file (~/.openharness/settings.json)."""
+    """Return the path to the main settings file (~/.opencortex/settings.json)."""
     return get_config_dir() / _CONFIG_FILE_NAME
 
 
@@ -39,7 +39,7 @@ def get_data_dir() -> Path:
 
     Resolution order:
     1. OPENHARNESS_DATA_DIR environment variable
-    2. ~/.openharness/data/
+    2. ~/.opencortex/data/
     """
     env_dir = os.environ.get("OPENHARNESS_DATA_DIR")
     if env_dir:
@@ -56,7 +56,7 @@ def get_logs_dir() -> Path:
 
     Resolution order:
     1. OPENHARNESS_LOGS_DIR environment variable
-    2. ~/.openharness/logs/
+    2. ~/.opencortex/logs/
     """
     env_dir = os.environ.get("OPENHARNESS_LOGS_DIR")
     if env_dir:
@@ -100,8 +100,8 @@ def get_cron_registry_path() -> Path:
 
 
 def get_project_config_dir(cwd: str | Path) -> Path:
-    """Return the per-project .openharness directory."""
-    project_dir = Path(cwd).resolve() / ".openharness"
+    """Return the per-project .opencortex directory."""
+    project_dir = Path(cwd).resolve() / ".opencortex"
     project_dir.mkdir(parents=True, exist_ok=True)
     return project_dir
 

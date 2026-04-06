@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Awaitable, Callable, Literal, get_args
 
 import pyperclip
 
-from openharness.config.paths import (
+from opencortex.config.paths import (
     get_config_dir,
     get_data_dir,
     get_feedback_log_path,
@@ -21,39 +21,39 @@ from openharness.config.paths import (
     get_project_issue_file,
     get_project_pr_comments_file,
 )
-from openharness.bridge import get_bridge_manager
-from openharness.bridge.types import WorkSecret
-from openharness.bridge.work_secret import build_sdk_url, decode_work_secret, encode_work_secret
-from openharness.api.provider import auth_status, detect_provider
-from openharness.config.settings import Settings, load_settings, save_settings
-from openharness.engine.messages import ConversationMessage
-from openharness.engine.query_engine import QueryEngine
-from openharness.memory import (
+from opencortex.bridge import get_bridge_manager
+from opencortex.bridge.types import WorkSecret
+from opencortex.bridge.work_secret import build_sdk_url, decode_work_secret, encode_work_secret
+from opencortex.api.provider import auth_status, detect_provider
+from opencortex.config.settings import Settings, load_settings, save_settings
+from opencortex.engine.messages import ConversationMessage
+from opencortex.engine.query_engine import QueryEngine
+from opencortex.memory import (
     add_memory_entry,
     get_memory_entrypoint,
     get_project_memory_dir,
     list_memory_files,
     remove_memory_entry,
 )
-from openharness.output_styles import load_output_styles
-from openharness.permissions import PermissionChecker, PermissionMode
-from openharness.plugins import load_plugins
-from openharness.prompts import build_runtime_system_prompt
-from openharness.plugins.installer import install_plugin_from_path, uninstall_plugin
-from openharness.services import (
+from opencortex.output_styles import load_output_styles
+from opencortex.permissions import PermissionChecker, PermissionMode
+from opencortex.plugins import load_plugins
+from opencortex.prompts import build_runtime_system_prompt
+from opencortex.plugins.installer import install_plugin_from_path, uninstall_plugin
+from opencortex.services import (
     compact_messages,
     estimate_conversation_tokens,
     export_session_markdown,
     save_session_snapshot,
     summarize_messages,
 )
-from openharness.services.session_storage import get_project_session_dir, load_session_snapshot
-from openharness.skills import load_skill_registry
-from openharness.tasks import get_task_manager
+from opencortex.services.session_storage import get_project_session_dir, load_session_snapshot
+from opencortex.skills import load_skill_registry
+from opencortex.tasks import get_task_manager
 
 if TYPE_CHECKING:
-    from openharness.state import AppStateStore
-    from openharness.tools.base import ToolRegistry
+    from opencortex.state import AppStateStore
+    from opencortex.tools.base import ToolRegistry
 
 
 @dataclass
@@ -230,7 +230,7 @@ def create_default_command_registry() -> CommandRegistry:
     async def _version_handler(_: str, context: CommandContext) -> CommandResult:
         del context
         try:
-            version = importlib.metadata.version("openharness")
+            version = importlib.metadata.version("opencortex")
         except importlib.metadata.PackageNotFoundError:
             version = "0.1.0"
         return CommandResult(message=f"OpenHarness {version}")
@@ -358,7 +358,7 @@ def create_default_command_registry() -> CommandRegistry:
         return CommandResult(message=context.hooks_summary or "No hooks configured.")
 
     async def _resume_handler(args: str, context: CommandContext) -> CommandResult:
-        from openharness.services.session_storage import list_session_snapshots, load_session_by_id
+        from opencortex.services.session_storage import list_session_snapshots, load_session_by_id
 
         tokens = args.strip().split()
 
@@ -712,7 +712,7 @@ def create_default_command_registry() -> CommandRegistry:
             )
         settings.api_key = api_key
         save_settings(settings)
-        return CommandResult(message="Stored API key in ~/.openharness/settings.json")
+        return CommandResult(message="Stored API key in ~/.opencortex/settings.json")
 
     async def _logout_handler(_: str, context: CommandContext) -> CommandResult:
         del context
@@ -1019,7 +1019,7 @@ def create_default_command_registry() -> CommandRegistry:
         return CommandResult(message="Usage: /output-style [show|list|set NAME]")
 
     async def _keybindings_handler(_: str, context: CommandContext) -> CommandResult:
-        from openharness.keybindings import get_keybindings_path, load_keybindings
+        from opencortex.keybindings import get_keybindings_path, load_keybindings
 
         bindings = (
             context.app_state.get().keybindings
@@ -1050,7 +1050,7 @@ def create_default_command_registry() -> CommandRegistry:
         return CommandResult(message=f"Vim mode {'enabled' if enabled else 'disabled'}.")
 
     async def _voice_handler(args: str, context: CommandContext) -> CommandResult:
-        from openharness.voice import extract_keyterms, inspect_voice_capabilities
+        from opencortex.voice import extract_keyterms, inspect_voice_capabilities
 
         settings = load_settings()
         diagnostics = inspect_voice_capabilities(detect_provider(settings))
@@ -1117,7 +1117,7 @@ def create_default_command_registry() -> CommandRegistry:
             f"- feedback_log: {get_feedback_log_path()}",
             f"- api_base_url: {settings.base_url or '(default Anthropic-compatible endpoint)'}",
             "- network: enabled only for provider and explicit web/MCP calls",
-            "- storage: local files under ~/.openharness and project .openharness",
+            "- storage: local files under ~/.opencortex and project .opencortex",
         ]
         return CommandResult(message="\n".join(lines))
 
@@ -1150,7 +1150,7 @@ def create_default_command_registry() -> CommandRegistry:
     async def _upgrade_handler(_: str, context: CommandContext) -> CommandResult:
         del context
         try:
-            version = importlib.metadata.version("openharness")
+            version = importlib.metadata.version("opencortex")
         except importlib.metadata.PackageNotFoundError:
             version = "0.1.0"
         return CommandResult(

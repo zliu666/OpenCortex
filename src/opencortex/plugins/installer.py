@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from openharness.plugins.loader import get_user_plugins_dir
+from opencortex.plugins.loader import get_user_plugins_dir
 
 
 def install_plugin_from_path(source: str | Path) -> Path:

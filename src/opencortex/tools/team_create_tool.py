@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from openharness.coordinator.coordinator_mode import get_team_registry
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.coordinator.coordinator_mode import get_team_registry
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class TeamCreateToolInput(BaseModel):

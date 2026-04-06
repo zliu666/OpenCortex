@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.config import load_settings
-from openharness.hooks.loader import HookRegistry, load_hook_registry
+from opencortex.config import load_settings
+from opencortex.hooks.loader import HookRegistry, load_hook_registry
 
 
 class HookReloader:

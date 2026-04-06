@@ -6,10 +6,10 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from openharness.swarm.registry import get_backend_registry
-from openharness.swarm.types import TeammateMessage
-from openharness.tasks.manager import get_task_manager
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.swarm.registry import get_backend_registry
+from opencortex.swarm.types import TeammateMessage
+from opencortex.tasks.manager import get_task_manager
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 logger = logging.getLogger(__name__)
 

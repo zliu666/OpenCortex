@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from openharness.config.paths import get_config_dir
-from openharness.plugins.schemas import PluginManifest
-from openharness.plugins.types import LoadedPlugin
-from openharness.skills.loader import _parse_skill_markdown
-from openharness.skills.types import SkillDefinition
+from opencortex.config.paths import get_config_dir
+from opencortex.plugins.schemas import PluginManifest
+from opencortex.plugins.types import LoadedPlugin
+from opencortex.skills.loader import _parse_skill_markdown
+from opencortex.skills.types import SkillDefinition
 
 
 def get_user_plugins_dir() -> Path:
@@ -21,7 +21,7 @@ def get_user_plugins_dir() -> Path:
 
 def get_project_plugins_dir(cwd: str | Path) -> Path:
     """Return the project plugin directory."""
-    path = Path(cwd).resolve() / ".openharness" / "plugins"
+    path = Path(cwd).resolve() / ".opencortex" / "plugins"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -128,7 +128,7 @@ def _load_plugin_skills(path: Path) -> list[SkillDefinition]:
 def _load_plugin_hooks(path: Path) -> dict[str, list]:
     if not path.exists():
         return {}
-    from openharness.hooks.schemas import (
+    from opencortex.hooks.schemas import (
         AgentHookDefinition,
         CommandHookDefinition,
         HttpHookDefinition,
@@ -187,7 +187,7 @@ def _load_plugin_hooks_structured(path: Path, plugin_root: Path) -> dict[str, li
 def _load_plugin_mcp(path: Path) -> dict[str, object]:
     if not path.exists():
         return {}
-    from openharness.mcp.types import McpJsonConfig
+    from opencortex.mcp.types import McpJsonConfig
 
     raw = json.loads(path.read_text(encoding="utf-8"))
     parsed = McpJsonConfig.model_validate(raw)

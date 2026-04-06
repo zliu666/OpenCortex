@@ -8,7 +8,7 @@ import re
 
 from pydantic import BaseModel, Field
 
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class EnterWorktreeToolInput(BaseModel):
@@ -77,4 +77,4 @@ def _resolve_worktree_path(repo_root: Path, branch: str, path: str | None) -> Pa
             resolved = repo_root / resolved
         return resolved.resolve()
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", branch).strip("-") or "worktree"
-    return (repo_root / ".openharness" / "worktrees" / slug).resolve()
+    return (repo_root / ".opencortex" / "worktrees" / slug).resolve()

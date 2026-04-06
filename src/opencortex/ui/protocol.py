@@ -6,10 +6,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from openharness.state.app_state import AppState
-from openharness.bridge.manager import BridgeSessionRecord
-from openharness.mcp.types import McpConnectionStatus
-from openharness.tasks.types import TaskRecord
+from opencortex.state.app_state import AppState
+from opencortex.bridge.manager import BridgeSessionRecord
+from opencortex.mcp.types import McpConnectionStatus
+from opencortex.tasks.types import TaskRecord
 
 
 class FrontendRequest(BaseModel):

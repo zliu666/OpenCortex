@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import sys
 
-from openharness.api.client import SupportsStreamingMessages
-from openharness.engine.stream_events import StreamEvent
-from openharness.ui.backend_host import run_backend_host
-from openharness.ui.react_launcher import launch_react_tui
-from openharness.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
+from opencortex.api.client import SupportsStreamingMessages
+from opencortex.engine.stream_events import StreamEvent
+from opencortex.ui.backend_host import run_backend_host
+from opencortex.ui.react_launcher import launch_react_tui
+from opencortex.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
 
 
 async def run_repl(
@@ -25,7 +25,7 @@ async def run_repl(
     backend_only: bool = False,
     restore_messages: list[dict] | None = None,
 ) -> None:
-    """Run the default OpenHarness interactive application (React TUI)."""
+    """Run the default OpenCortex interactive application (React TUI)."""
     if backend_only:
         await run_backend_host(
             cwd=cwd,
@@ -67,7 +67,7 @@ async def run_print_mode(
     max_turns: int | None = None,
 ) -> None:
     """Non-interactive mode: submit prompt, stream output, exit."""
-    from openharness.engine.stream_events import (
+    from opencortex.engine.stream_events import (
         AssistantTextDelta,
         AssistantTurnComplete,
         ToolExecutionCompleted,

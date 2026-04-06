@@ -1,17 +1,17 @@
 """Service exports."""
 
-from openharness.services.compact import (
+from opencortex.services.compact import (
     compact_messages,
     estimate_conversation_tokens,
     summarize_messages,
 )
-from openharness.services.session_storage import (
+from opencortex.services.session_storage import (
     export_session_markdown,
     get_project_session_dir,
     load_session_snapshot,
     save_session_snapshot,
 )
-from openharness.services.token_estimation import estimate_message_tokens, estimate_tokens
+from opencortex.services.token_estimation import estimate_message_tokens, estimate_tokens
 
 __all__ = [
     "compact_messages",

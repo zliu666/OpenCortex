@@ -10,7 +10,7 @@ from typing import Optional
 import typer
 
 app = typer.Typer(
-    name="openharness",
+    name="opencortex",
     help=(
         "Oh my Harness! An AI-powered coding assistant.\n\n"
         "Starts an interactive session by default, use -p/--print for non-interactive output."
@@ -41,9 +41,9 @@ app.add_typer(cron_app)
 @mcp_app.command("list")
 def mcp_list() -> None:
     """List configured MCP servers."""
-    from openharness.config import load_settings
-    from openharness.mcp.config import load_mcp_server_configs
-    from openharness.plugins import load_plugins
+    from opencortex.config import load_settings
+    from opencortex.mcp.config import load_mcp_server_configs
+    from opencortex.plugins import load_plugins
 
     settings = load_settings()
     plugins = load_plugins(settings, str(Path.cwd()))
@@ -62,7 +62,7 @@ def mcp_add(
     config_json: str = typer.Argument(..., help="Server config as JSON string"),
 ) -> None:
     """Add an MCP server configuration."""
-    from openharness.config import load_settings, save_settings
+    from opencortex.config import load_settings, save_settings
 
     settings = load_settings()
     try:
@@ -82,7 +82,7 @@ def mcp_remove(
     name: str = typer.Argument(..., help="Server name to remove"),
 ) -> None:
     """Remove an MCP server configuration."""
-    from openharness.config import load_settings, save_settings
+    from opencortex.config import load_settings, save_settings
 
     settings = load_settings()
     if not isinstance(settings.mcp_servers, dict) or name not in settings.mcp_servers:
@@ -98,8 +98,8 @@ def mcp_remove(
 @plugin_app.command("list")
 def plugin_list() -> None:
     """List installed plugins."""
-    from openharness.config import load_settings
-    from openharness.plugins import load_plugins
+    from opencortex.config import load_settings
+    from opencortex.plugins import load_plugins
 
     settings = load_settings()
     plugins = load_plugins(settings, str(Path.cwd()))
@@ -116,7 +116,7 @@ def plugin_install(
     source: str = typer.Argument(..., help="Plugin source (path or URL)"),
 ) -> None:
     """Install a plugin from a source path."""
-    from openharness.plugins.installer import install_plugin_from_path
+    from opencortex.plugins.installer import install_plugin_from_path
 
     result = install_plugin_from_path(source)
     print(f"Installed plugin: {result}")
@@ -127,7 +127,7 @@ def plugin_uninstall(
     name: str = typer.Argument(..., help="Plugin name to uninstall"),
 ) -> None:
     """Uninstall a plugin."""
-    from openharness.plugins.installer import uninstall_plugin
+    from opencortex.plugins.installer import uninstall_plugin
 
     uninstall_plugin(name)
     print(f"Uninstalled plugin: {name}")
@@ -138,7 +138,7 @@ def plugin_uninstall(
 @cron_app.command("start")
 def cron_start() -> None:
     """Start the cron scheduler daemon."""
-    from openharness.services.cron_scheduler import is_scheduler_running, start_daemon
+    from opencortex.services.cron_scheduler import is_scheduler_running, start_daemon
 
     if is_scheduler_running():
         print("Cron scheduler is already running.")
@@ -150,7 +150,7 @@ def cron_start() -> None:
 @cron_app.command("stop")
 def cron_stop() -> None:
     """Stop the cron scheduler daemon."""
-    from openharness.services.cron_scheduler import stop_scheduler
+    from opencortex.services.cron_scheduler import stop_scheduler
 
     if stop_scheduler():
         print("Cron scheduler stopped.")
@@ -161,7 +161,7 @@ def cron_stop() -> None:
 @cron_app.command("status")
 def cron_status_cmd() -> None:
     """Show cron scheduler status and job summary."""
-    from openharness.services.cron_scheduler import scheduler_status
+    from opencortex.services.cron_scheduler import scheduler_status
 
     status = scheduler_status()
     state = "running" if status["running"] else "stopped"
@@ -173,7 +173,7 @@ def cron_status_cmd() -> None:
 @cron_app.command("list")
 def cron_list_cmd() -> None:
     """List all registered cron jobs with schedule and status."""
-    from openharness.services.cron import load_cron_jobs
+    from opencortex.services.cron import load_cron_jobs
 
     jobs = load_cron_jobs()
     if not jobs:
@@ -197,7 +197,7 @@ def cron_toggle_cmd(
     enabled: bool = typer.Argument(..., help="true to enable, false to disable"),
 ) -> None:
     """Enable or disable a cron job."""
-    from openharness.services.cron import set_job_enabled
+    from opencortex.services.cron import set_job_enabled
 
     if not set_job_enabled(name, enabled):
         print(f"Cron job not found: {name}")
@@ -212,7 +212,7 @@ def cron_history_cmd(
     limit: int = typer.Option(20, "--limit", "-n", help="Number of entries"),
 ) -> None:
     """Show cron execution history."""
-    from openharness.services.cron_scheduler import load_history
+    from opencortex.services.cron_scheduler import load_history
 
     entries = load_history(limit=limit, job_name=name)
     if not entries:
@@ -234,7 +234,7 @@ def cron_logs_cmd(
     lines: int = typer.Option(30, "--lines", "-n", help="Number of lines to show"),
 ) -> None:
     """Show recent cron scheduler log output."""
-    from openharness.config.paths import get_logs_dir
+    from opencortex.config.paths import get_logs_dir
 
     log_path = get_logs_dir() / "cron_scheduler.log"
     if not log_path.exists():
@@ -251,8 +251,8 @@ def cron_logs_cmd(
 @auth_app.command("status")
 def auth_status_cmd() -> None:
     """Show authentication status."""
-    from openharness.api.provider import auth_status, detect_provider
-    from openharness.config import load_settings
+    from opencortex.api.provider import auth_status, detect_provider
+    from opencortex.config import load_settings
 
     settings = load_settings()
     provider = detect_provider(settings)
@@ -266,7 +266,7 @@ def auth_login(
     api_key: str | None = typer.Option(None, "--api-key", "-k", help="API key"),
 ) -> None:
     """Configure authentication."""
-    from openharness.config import load_settings, save_settings
+    from opencortex.config import load_settings, save_settings
 
     if not api_key:
         api_key = typer.prompt("Enter your API key", hide_input=True)
@@ -279,7 +279,7 @@ def auth_login(
 @auth_app.command("logout")
 def auth_logout() -> None:
     """Remove stored authentication."""
-    from openharness.config import load_settings, save_settings
+    from opencortex.config import load_settings, save_settings
 
     settings = load_settings()
     settings.api_key = None
@@ -462,11 +462,11 @@ def main(
     if dangerously_skip_permissions:
         permission_mode = "full_auto"
 
-    from openharness.ui.app import run_print_mode, run_repl
+    from opencortex.ui.app import run_print_mode, run_repl
 
     # Handle --continue and --resume flags
     if continue_session or resume is not None:
-        from openharness.services.session_storage import (
+        from opencortex.services.session_storage import (
             list_session_snapshots,
             load_session_by_id,
             load_session_snapshot,
