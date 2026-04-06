@@ -1479,11 +1479,15 @@ def create_default_command_registry() -> CommandRegistry:
                 if current_key or env_key or provider.get("api_key"):
                     masked = (current_key[:6] + "..." + current_key[-4:]) if len(current_key) > 10 else "(configured)"
                     msg = (f"✅ {name} 已配置。\n"
-                           f"  API Key: {masked}\n"
-                           f"使用 /provider switch 切换。") if lang == "zh" else (
+                           f"  API Key: {masked}\n\n"
+                           f"如需修改，请编辑配置文件:\n"
+                           f"  nano ~/.opencortex/settings.json\n"
+                           f"  在 provider_keys.{provider_id} 中修改") if lang == "zh" else (
                         f"✅ {name} is already configured.\n"
-                        f"  API Key: {masked}\n"
-                        f"Use /provider switch to switch.")
+                        f"  API Key: {masked}\n\n"
+                        f"To update, edit config file:\n"
+                        f"  nano ~/.opencortex/settings.json\n"
+                           f"  Change provider_keys.{provider_id}")
                     return CommandResult(message=msg)
                 if not requires:
                     return CommandResult(message=f"✅ {name} does not require an API key.")
