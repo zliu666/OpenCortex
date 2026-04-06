@@ -133,8 +133,106 @@ class ReactBackendHost:
                 continue
             await self._request_queue.put(request)
 
+    async def _handle_provider_select(self) -> None:
+        """Show interactive provider selector, same pattern as /resume."""
+        from opencortex.providers.manager import ProviderManager
+
+        assert self._bundle is not None
+        manager = ProviderManager()
+        all_providers = manager.list_providers()
+        custom = manager.list_custom_providers()
+        options = []
+        for pid, pconfig in all_providers.items():
+            if pid.startswith("custom:"):
+                label = f"📝 {pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
+            else:
+                label = f"{pconfig.get('name', pid)} ({pconfig.get('default_model', '')})"
+            options.append({"value": f"/provider select {pid}", "label": label})
+        if not options:
+            options.append({"value": "", "label": "No providers available"})
+        await self._emit(
+            BackendEvent(
+                type="select_request",
+                modal={"kind": "select", "title": "Select AI Provider", "submit_prefix": ""},
+                select_options=options,
+            )
+        )
+
+    async def _handle_provider_models(self, provider_id: str) -> None:
+        """Show model selector for a provider, same pattern as /resume."""
+        from opencortex.providers.manager import ProviderManager
+
+        assert self._bundle is not None
+        manager = ProviderManager()
+        provider = manager.get_provider(provider_id)
+        if not provider:
+            await self._emit(BackendEvent(type="error", message=f"Provider not found: {provider_id}"))
+            return
+        models = provider.get("models", [])
+        if not models:
+            await self._emit(BackendEvent(type="error", message=f"No models for {provider_id}"))
+            return
+        options = [{"value": f"/provider pick {provider_id} {m}", "label": m} for m in models]
+        name = provider.get("name", provider_id)
+        await self._emit(
+            BackendEvent(
+                type="select_request",
+                modal={"kind": "select", "title": f"Select Model - {name}", "submit_prefix": ""},
+                select_options=options,
+            )
+        )
+
+    async def _handle_provider_pick(self, provider_id: str, model: str) -> None:
+        """Execute provider switch."""
+        from opencortex.providers.manager import ProviderManager
+        from opencortex.config.settings import load_settings, save_settings
+
+        assert self._bundle is not None
+        manager = ProviderManager()
+        provider = manager.get_provider(provider_id)
+        if not provider:
+            await self._emit(BackendEvent(type="error", message=f"Provider not found: {provider_id}"))
+            return
+        settings = load_settings()
+        if provider.get("base_url"):
+            settings.base_url = provider["base_url"]
+        if provider.get("api_format"):
+            settings.api_format = provider["api_format"]
+        settings.model = model
+        if provider.get("api_key"):
+            settings.api_key = provider["api_key"]
+        save_settings(settings)
+        self._bundle.engine.set_model(model)
+        self._bundle.app_state.set(model=model)
+        name = provider.get("name", provider_id)
+        await self._emit(
+            BackendEvent(
+                type="transcript_item",
+                item=TranscriptItem(
+                    role="system",
+                    text=f"Switched to {name} / {model}\n  base_url: {settings.base_url or '(default)'}\n  api_format: {settings.api_format}\nRestart session to use the new provider.",
+                ),
+            )
+        )
+
     async def _process_line(self, line: str) -> bool:
         assert self._bundle is not None
+
+        # Intercept /provider for interactive selection (same pattern as /resume)
+        stripped = line.strip()
+        if stripped == "/provider" or stripped == "/provider list":
+            await self._handle_provider_select()
+            return True
+        if stripped.startswith("/provider select "):
+            provider_id = stripped[len("/provider select "):].strip()
+            await self._handle_provider_models(provider_id)
+            return True
+        if stripped.startswith("/provider pick "):
+            parts = stripped[len("/provider pick "):].strip().split(maxsplit=1)
+            if len(parts) == 2:
+                await self._handle_provider_pick(parts[0], parts[1])
+            return True
+
         await self._emit(
             BackendEvent(type="transcript_item", item=TranscriptItem(role="user", text=line))
         )

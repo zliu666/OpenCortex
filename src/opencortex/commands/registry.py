@@ -111,11 +111,14 @@ class CommandRegistry:
             return None
         return command, args.strip()
 
-    def help_text(self) -> str:
+    def help_text(self, language: str = "en") -> str:
         """Return a formatted summary of all registered commands."""
-        lines = ["Available commands:"]
+        from opencortex.i18n import t
+        header = "可用命令：" if language == "zh" else "Available commands:"
+        lines = [header]
         for command in sorted(self._commands.values(), key=lambda item: item.name):
-            lines.append(f"/{command.name:<12} {command.description}")
+            desc = t(command.name, language)
+            lines.append(f"/{command.name:<12} {desc}")
         return "\n".join(lines)
 
     def list_commands(self) -> list[SlashCommand]:
@@ -204,8 +207,9 @@ def create_default_command_registry() -> CommandRegistry:
     registry = CommandRegistry()
 
     async def _help_handler(_: str, context: CommandContext) -> CommandResult:
-        del context
-        return CommandResult(message=registry.help_text())
+        from opencortex.config.settings import load_settings
+        settings = load_settings()
+        return CommandResult(message=registry.help_text(settings.language))
 
     async def _exit_handler(_: str, context: CommandContext) -> CommandResult:
         del context
@@ -1317,4 +1321,52 @@ def create_default_command_registry() -> CommandRegistry:
     registry.register(SlashCommand("upgrade", "Show upgrade instructions", _upgrade_handler))
     registry.register(SlashCommand("agents", "List or inspect agent and teammate tasks", _agents_handler))
     registry.register(SlashCommand("tasks", "Manage background tasks", _tasks_handler))
+
+    # --- Language switch ---
+    async def _lang_handler(args: str, context: CommandContext) -> CommandResult:
+        del context
+        settings = load_settings()
+        tokens = args.split(maxsplit=1)
+        if not tokens or tokens[0] == "show":
+            return CommandResult(message=f"Language: {settings.language}")
+        lang = tokens[0].strip().lower()
+        if lang not in ("en", "zh"):
+            return CommandResult(message="Usage: /lang [en|zh]")
+        settings.language = lang
+        save_settings(settings)
+        label = "中文" if lang == "zh" else "English"
+        return CommandResult(message=f"Language set to {label}")
+    registry.register(SlashCommand("lang", "Switch command help language (en/zh)", _lang_handler))
+
+    # --- Provider switch (text mode fallback for headless/textual) ---
+    async def _provider_handler(args: str, context: CommandContext) -> CommandResult:
+        from opencortex.providers.manager import ProviderManager
+        pm = ProviderManager()
+        tokens = args.strip().split()
+        settings = load_settings()
+        if not tokens or tokens[0] == "list":
+            return CommandResult(message=pm.list_all_info())
+        if tokens[0] == "show" and len(tokens) == 2:
+            return CommandResult(message=pm.get_provider_info(tokens[1]))
+        if tokens[0] == "use" and len(tokens) >= 2:
+            provider_id = tokens[1]
+            provider = pm.get_provider(provider_id)
+            if not provider:
+                return CommandResult(message=f"Provider not found: {provider_id}\nUse /provider list to see available providers.")
+            if provider.get("base_url"):
+                settings.base_url = provider["base_url"]
+            if provider.get("api_format"):
+                settings.api_format = provider["api_format"]
+            if provider.get("default_model"):
+                settings.model = provider["default_model"]
+            if provider.get("api_key"):
+                settings.api_key = provider["api_key"]
+            save_settings(settings)
+            context.engine.set_model(settings.model)
+            if context.app_state is not None:
+                context.app_state.set(model=settings.model)
+            return CommandResult(message=f"Switched to {provider.get('name', provider_id)}\n  model: {settings.model}\n  base_url: {settings.base_url or '(default)'}\n  api_format: {settings.api_format}\nRestart session to use the new provider.")
+        return CommandResult(message="Usage: /provider [list|show ID|use ID]")
+    registry.register(SlashCommand("provider", "Switch AI provider (zhipu/minimax/custom)", _provider_handler))
+
     return registry

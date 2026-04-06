@@ -66,6 +66,7 @@ class Settings(BaseModel):
 
     # UI
     theme: str = "default"
+    language: str = "en"  # "en" or "zh"
     output_style: str = "default"
     vim_mode: bool = False
     voice_mode: bool = False
