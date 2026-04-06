@@ -55,6 +55,7 @@ class Settings(BaseModel):
     max_tokens: int = 16384
     base_url: str | None = None
     api_format: str = "anthropic"  # "anthropic" or "openai"
+    provider_keys: dict[str, str] = Field(default_factory=dict)  # per-provider API keys
 
     # Behavior
     system_prompt: str | None = None

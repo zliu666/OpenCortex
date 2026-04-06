@@ -1415,7 +1415,9 @@ def create_default_command_registry() -> CommandRegistry:
             if not provider:
                 return CommandResult(message=f"Provider not found: {provider_id}")
             requires = provider.get("requires", [])
-            key_ok = bool(provider.get("api_key")) or bool(settings.api_key)
+            # Check key: provider_keys[provider_id] > settings.api_key > env var
+            provider_key = settings.provider_keys.get(provider_id, "")
+            key_ok = bool(provider_key) or bool(settings.api_key)
             if requires and not key_ok:
                 env_hints = " or ".join(requires)
                 msg = (f"⚠️ {provider.get('name', provider_id)} 未配置 API Key。\n"
@@ -1430,7 +1432,10 @@ def create_default_command_registry() -> CommandRegistry:
             if provider.get("api_format"):
                 settings.api_format = provider["api_format"]
             settings.model = model
-            if provider.get("api_key"):
+            # Use provider-specific key if available, otherwise global key
+            if provider_key:
+                settings.api_key = provider_key
+            elif provider.get("api_key"):
                 settings.api_key = provider["api_key"]
             save_settings(settings)
             context.engine.set_model(model)
@@ -1464,7 +1469,7 @@ def create_default_command_registry() -> CommandRegistry:
                     return CommandResult(message=f"Provider not found: {provider_id}")
                 name = provider.get("name", provider_id)
                 requires = provider.get("requires", [])
-                current_key = settings.api_key or ""
+                current_key = settings.provider_keys.get(provider_id, "") or settings.api_key or ""
                 env_key = ""
                 for env_name in requires:
                     val = os.environ.get(env_name, "")
