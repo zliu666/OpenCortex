@@ -233,7 +233,7 @@ def create_default_command_registry() -> CommandRegistry:
             version = importlib.metadata.version("opencortex")
         except importlib.metadata.PackageNotFoundError:
             version = "0.1.0"
-        return CommandResult(message=f"OpenHarness {version}")
+        return CommandResult(message=f"OpenCortex {version}")
 
     async def _context_handler(_: str, context: CommandContext) -> CommandResult:
         settings = load_settings()
@@ -555,7 +555,7 @@ def create_default_command_registry() -> CommandRegistry:
         if not claudemd.exists():
             claudemd.write_text(
                 "# Project Instructions\n\n"
-                "- Use OpenHarness tools deliberately.\n"
+                "- Use OpenCortex tools deliberately.\n"
                 "- Keep changes minimal and verify with tests when possible.\n",
                 encoding="utf-8",
             )
@@ -564,7 +564,7 @@ def create_default_command_registry() -> CommandRegistry:
         for relative, content in (
             (
                 project_dir / "README.md",
-                "# Project OpenHarness Config\n\nThis directory stores project-specific OpenHarness state.\n",
+                "# Project OpenCortex Config\n\nThis directory stores project-specific OpenCortex state.\n",
             ),
             (
                 project_dir / "memory" / "MEMORY.md",
@@ -585,7 +585,7 @@ def create_default_command_registry() -> CommandRegistry:
                 created.append(str(relative.relative_to(Path(context.cwd))))
 
         if not created:
-            return CommandResult(message="Project already initialized for OpenHarness.")
+            return CommandResult(message="Project already initialized for OpenCortex.")
         return CommandResult(message="Initialized project files:\n" + "\n".join(f"- {item}" for item in created))
 
     async def _bridge_handler(args: str, context: CommandContext) -> CommandResult:
@@ -735,7 +735,7 @@ def create_default_command_registry() -> CommandRegistry:
         del context
         return CommandResult(
             message=(
-                "OpenHarness quickstart:\n"
+                "OpenCortex quickstart:\n"
                 "1. Ask for a coding task in plain language.\n"
                 "2. Use /help to inspect commands.\n"
                 "3. Use /doctor to inspect runtime state.\n"
@@ -1263,9 +1263,9 @@ def create_default_command_registry() -> CommandRegistry:
         )
 
     registry.register(SlashCommand("help", "Show available commands", _help_handler))
-    registry.register(SlashCommand("exit", "Exit OpenHarness", _exit_handler))
+    registry.register(SlashCommand("exit", "Exit OpenCortex", _exit_handler))
     registry.register(SlashCommand("clear", "Clear conversation history", _clear_handler))
-    registry.register(SlashCommand("version", "Show the installed OpenHarness version", _version_handler))
+    registry.register(SlashCommand("version", "Show the installed OpenCortex version", _version_handler))
     registry.register(SlashCommand("status", "Show session status", _status_handler))
     registry.register(SlashCommand("context", "Show the active runtime system prompt", _context_handler))
     registry.register(SlashCommand("summary", "Summarize conversation history", _summary_handler))
@@ -1283,7 +1283,7 @@ def create_default_command_registry() -> CommandRegistry:
     registry.register(SlashCommand("tag", "Create a named snapshot of the current session", _tag_handler))
     registry.register(SlashCommand("rewind", "Remove the latest conversation turn(s)", _rewind_handler))
     registry.register(SlashCommand("files", "List files in the current workspace", _files_handler))
-    registry.register(SlashCommand("init", "Initialize project OpenHarness files", _init_handler))
+    registry.register(SlashCommand("init", "Initialize project OpenCortex files", _init_handler))
     registry.register(SlashCommand("bridge", "Inspect bridge helpers and spawn bridge sessions", _bridge_handler))
     registry.register(SlashCommand("login", "Show auth status or store an API key", _login_handler))
     registry.register(SlashCommand("logout", "Clear the stored API key", _logout_handler))
@@ -1313,7 +1313,7 @@ def create_default_command_registry() -> CommandRegistry:
     registry.register(SlashCommand("pr_comments", "Show or update project PR comments context", _pr_comments_handler))
     registry.register(SlashCommand("privacy-settings", "Show local privacy and storage settings", _privacy_settings_handler))
     registry.register(SlashCommand("rate-limit-options", "Show ways to reduce provider rate pressure", _rate_limit_options_handler))
-    registry.register(SlashCommand("release-notes", "Show recent OpenHarness release notes", _release_notes_handler))
+    registry.register(SlashCommand("release-notes", "Show recent OpenCortex release notes", _release_notes_handler))
     registry.register(SlashCommand("upgrade", "Show upgrade instructions", _upgrade_handler))
     registry.register(SlashCommand("agents", "List or inspect agent and teammate tasks", _agents_handler))
     registry.register(SlashCommand("tasks", "Manage background tasks", _tasks_handler))

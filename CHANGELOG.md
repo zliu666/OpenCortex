@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to OpenHarness should be recorded in this file.
+All notable changes to OpenCortex should be recorded in this file.
 
 The format is based on Keep a Changelog, and this project currently tracks changes in a lightweight, repository-oriented way.
 
@@ -14,7 +14,7 @@ The format is based on Keep a Changelog, and this project currently tracks chang
 - `OPENAI_API_KEY` fallback when using OpenAI-format providers.
 - GitHub Actions CI workflow for Python linting, tests, and frontend TypeScript checks.
 - `CONTRIBUTING.md` with local setup, validation commands, and PR expectations.
-- `docs/SHOWCASE.md` with concrete OpenHarness usage patterns and demo commands.
+- `docs/SHOWCASE.md` with concrete OpenCortex usage patterns and demo commands.
 - GitHub issue templates and a pull request template.
 
 ### Fixed
@@ -34,5 +34,5 @@ The format is based on Keep a Changelog, and this project currently tracks chang
 
 ### Added
 
-- Initial public release of OpenHarness.
+- Initial public release of OpenCortex.
 - Core agent loop, tool registry, permission system, hooks, skills, plugins, MCP support, and terminal UI.

@@ -1,4 +1,4 @@
-"""Permission helpers for OpenHarness."""
+"""Permission helpers for OpenCortex."""
 
 from __future__ import annotations
 

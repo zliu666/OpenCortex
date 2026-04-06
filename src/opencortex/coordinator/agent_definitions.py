@@ -1,4 +1,4 @@
-"""Agent definition loading system for OpenHarness."""
+"""Agent definition loading system for OpenCortex."""
 
 from __future__ import annotations
 

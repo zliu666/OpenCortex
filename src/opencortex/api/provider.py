@@ -23,6 +23,9 @@ def detect_provider(settings: Settings) -> ProviderInfo:
     model = settings.model.lower()
     
     # 智谱 AI (GLM 系列)
+    # Coding Plan 端点: https://open.bigmodel.cn/api/coding/paas/v4/
+    # 通用端点: https://open.bigmodel.cn/api/paas/v4/
+    # Coding Plan 可用模型: GLM-5.1, GLM-5-Turbo, GLM-5(Pro/Max), GLM-4.7, GLM-4.6, GLM-4.5, GLM-4.5-Air
     if "zhipuai" in base_url or "bigmodel" in base_url or model.startswith("glm"):
         return ProviderInfo(
             name="zhipu-openai-compatible",
