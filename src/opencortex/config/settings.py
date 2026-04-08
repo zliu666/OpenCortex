@@ -110,6 +110,12 @@ class Settings(BaseModel):
     passes: int = 1
     verbose: bool = False
 
+    # Swarm / pane visualization
+    pane_visualization: bool = True
+    """Enable automatic pane creation for spawned agents (requires Zellij/tmux)."""
+    pane_layout_preference: str = "auto"
+    """Layout preference: 'auto', 'horizontal', or 'vertical'."""
+
     def resolve_api_key(self) -> str:
         """Resolve API key with precedence: instance value > env var > empty.
 

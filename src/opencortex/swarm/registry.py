@@ -22,6 +22,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+def _detect_zellij() -> bool:
+    """Return True if running inside a Zellij session."""
+    if os.environ.get("ZELLIJ"):
+        logger.debug("[BackendRegistry] _detect_zellij: ZELLIJ=%s", os.environ["ZELLIJ"])
+        return True
+    logger.debug("[BackendRegistry] _detect_zellij: $ZELLIJ not set")
+    return False
+
+
 def _detect_tmux() -> bool:
     """Return True if the process is running inside an active tmux session.
 
@@ -155,6 +164,23 @@ class BackendRegistry:
                 is_native=True,
             )
             return self._detected
+
+        # Priority 1.5: zellij (inside zellij session)
+        inside_zellij = _detect_zellij()
+        if inside_zellij:
+            if "zellij" in self._backends:
+                logger.debug("[BackendRegistry] Selected: zellij (running inside zellij session)")
+                self._detected = "zellij"
+                self._detection_result = BackendDetectionResult(
+                    backend="zellij",
+                    is_native=True,
+                )
+                return self._detected
+            else:
+                logger.debug(
+                    "[BackendRegistry] Inside zellij but ZellijBackend not registered — "
+                    "falling through"
+                )
 
         # Priority 2: tmux (inside session + binary available)
         inside_tmux = _detect_tmux()
@@ -388,6 +414,12 @@ class BackendRegistry:
 
         # Tmux backend registration is deferred until implementation exists.
         # If a TmuxBackend is available it can be registered via register_backend().
+
+        # Zellij pane backend — register when inside Zellij
+        if os.environ.get("ZELLIJ") and shutil.which("zellij"):
+            from opencortex.swarm.zellij_backend import ZellijPaneBackend
+            self._backends["zellij"] = ZellijPaneBackend()
+            logger.debug("[BackendRegistry] Registered zellij backend")
 
 
 # ---------------------------------------------------------------------------

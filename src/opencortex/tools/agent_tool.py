@@ -60,8 +60,25 @@ class AgentTool(BaseTool):
         # BackgroundTaskManager and are pollable by the task tools.
         # in_process tasks return asyncio-internal IDs that task tools
         # cannot query, and subprocess is always available on all platforms.
+        #
+        # When running inside Zellij, also create a visual pane for the agent.
         registry = get_backend_registry()
         executor = registry.get_executor("subprocess")
+
+        zellij_pane_id = None
+        try:
+            from opencortex.swarm.zellij_backend import is_inside_zellij, get_zellij_backend
+            if is_inside_zellij():
+                zellij = get_zellij_backend()
+                import asyncio
+                pane_result = await zellij.create_teammate_pane_in_swarm_view(
+                    name=agent_name,
+                    color=None,
+                )
+                zellij_pane_id = pane_result.pane_id
+                logger.info("Created Zellij pane %s for agent %s", zellij_pane_id, agent_name)
+        except Exception as exc:
+            logger.debug("Zellij pane creation skipped: %s", exc)
 
         config = TeammateSpawnConfig(
             name=agent_name,
@@ -82,6 +99,9 @@ class AgentTool(BaseTool):
 
         if not result.success:
             return ToolResult(output=result.error or "Failed to spawn agent", is_error=True)
+
+        if result.pane_id is None:
+            result.pane_id = zellij_pane_id
 
         if arguments.team:
             get_team_registry().add_agent(arguments.team, result.task_id)

@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 # Backend type literals
 # ---------------------------------------------------------------------------
 
-BackendType = Literal["subprocess", "in_process", "tmux", "iterm2"]
+BackendType = Literal["subprocess", "in_process", "tmux", "iterm2", "zellij"]
 """All supported backend types."""
 
-PaneBackendType = Literal["tmux", "iterm2"]
+PaneBackendType = Literal["tmux", "iterm2", "zellij"]
 """Subset of BackendType for pane-based (visual) backends only."""
 
 PaneId = str
@@ -389,4 +389,4 @@ class TeammateExecutor(Protocol):
 
 def is_pane_backend(backend_type: BackendType) -> bool:
     """Return True if *backend_type* is a terminal-pane backend (tmux or iterm2)."""
-    return backend_type in ("tmux", "iterm2")
+    return backend_type in ("tmux", "iterm2", "zellij")
