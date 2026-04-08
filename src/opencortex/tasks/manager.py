@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from opencortex.config.paths import get_tasks_dir
 from opencortex.tasks.types import TaskRecord, TaskStatus, TaskType
+from opencortex.utils.shell import create_shell_subprocess
 
 
 class BackgroundTaskManager:
@@ -212,9 +213,7 @@ class BackgroundTaskManager:
 
         generation = self._generations.get(task_id, 0) + 1
         self._generations[task_id] = generation
-        process = await asyncio.create_subprocess_exec(
-            "/bin/bash",
-            "-lc",
+        process = await create_shell_subprocess(
             task.command,
             cwd=task.cwd,
             stdin=asyncio.subprocess.PIPE,
