@@ -27,6 +27,7 @@ PRESET_PROVIDERS: dict[str, dict[str, Any]] = {
         "models": ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed", "MiniMax-M2.1", "MiniMax-M2"],
         "requires": ["MINIMAX_API_KEY"],
         "key_url": "https://platform.minimaxi.com/user-center/basic-information",
+        "tools_enabled": False,
     },
 }
 

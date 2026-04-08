@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 MAX_RETRIES = 3
 BASE_DELAY = 1.0
 MAX_DELAY = 30.0
+STREAM_TIMEOUT = 300  # seconds - overall stream timeout (5 min)
 
 
 def _convert_tools_to_openai(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -207,7 +208,22 @@ class OpenAICompatibleClient:
             raise self._translate_error(last_error) from last_error
 
     async def _stream_once(self, request: ApiMessageRequest) -> AsyncIterator[ApiStreamEvent]:
-        """Single attempt: stream an OpenAI chat completion."""
+        """Single attempt: stream an OpenAI chat completion.
+
+        Includes a hard timeout (STREAM_TIMEOUT) to prevent hangs when the
+        API server drops the connection without closing it properly.  This
+        is common when running behind HTTP proxies (e.g. Clash on port 7890)
+        that silently drop idle connections.
+
+        How it works:
+        - We consume the async stream into a list within a coroutine
+          wrapped by ``asyncio.wait_for``.  On timeout, the coroutine is
+          cancelled, which aborts the underlying HTTP connection.
+        - After the list is fully collected (or timeout raises), we yield
+          each event to the caller.
+        - ``TimeoutError`` is retryable (via ``_is_retryable``), so a
+          single transient hang will be retried up to MAX_RETRIES times.
+        """
         openai_messages = _convert_messages_to_openai(request.messages, request.system_prompt)
         openai_tools = _convert_tools_to_openai(request.tools) if request.tools else None
 
@@ -226,65 +242,82 @@ class OpenAICompatibleClient:
             # that requires reasoning_content on every assistant message.
             params.pop("stream_options", None)
 
-        # Collect full response while streaming text deltas
+        # Collected response state (shared with the inner coroutine)
         collected_content = ""
         collected_reasoning = ""
         collected_tool_calls: dict[int, dict[str, Any]] = {}
         finish_reason: str | None = None
         usage_data: dict[str, int] = {}
+        events: list[ApiStreamEvent] = []
 
         stream = await self._client.chat.completions.create(**params)
-        async for chunk in stream:
-            if not chunk.choices:
-                # Usage-only chunk (some providers send this at the end)
+
+        async def _consume_stream() -> None:
+            """Drain the stream into collected state + events list."""
+            nonlocal collected_content, collected_reasoning, finish_reason, usage_data
+
+            async for chunk in stream:
+                if not chunk.choices:
+                    # Usage-only chunk (some providers send this at the end)
+                    if chunk.usage:
+                        usage_data = {
+                            "input_tokens": chunk.usage.prompt_tokens or 0,
+                            "output_tokens": chunk.usage.completion_tokens or 0,
+                        }
+                    continue
+
+                delta = chunk.choices[0].delta
+                chunk_finish = chunk.choices[0].finish_reason
+
+                if chunk_finish:
+                    finish_reason = chunk_finish
+
+                # Accumulate reasoning_content from thinking models (not shown to user)
+                reasoning_piece = getattr(delta, "reasoning_content", None) or ""
+                if reasoning_piece:
+                    collected_reasoning += reasoning_piece
+
+                # Stream text content to user
+                if delta.content:
+                    collected_content += delta.content
+                    events.append(ApiTextDeltaEvent(text=delta.content))
+
+                # Accumulate tool calls
+                if delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in collected_tool_calls:
+                            collected_tool_calls[idx] = {
+                                "id": tc_delta.id or "",
+                                "name": "",
+                                "arguments": "",
+                            }
+                        entry = collected_tool_calls[idx]
+                        if tc_delta.id:
+                            entry["id"] = tc_delta.id
+                        if tc_delta.function:
+                            if tc_delta.function.name:
+                                entry["name"] = tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                entry["arguments"] += tc_delta.function.arguments
+
+                # Usage in chunk (if provider sends it)
                 if chunk.usage:
                     usage_data = {
                         "input_tokens": chunk.usage.prompt_tokens or 0,
                         "output_tokens": chunk.usage.completion_tokens or 0,
                     }
-                continue
 
-            delta = chunk.choices[0].delta
-            chunk_finish = chunk.choices[0].finish_reason
+        # Execute with a hard timeout
+        try:
+            await asyncio.wait_for(_consume_stream(), timeout=STREAM_TIMEOUT)
+        except asyncio.TimeoutError:
+            log.error("Stream exceeded %ds timeout for model=%s", STREAM_TIMEOUT, request.model)
+            raise TimeoutError(f"Stream exceeded {STREAM_TIMEOUT}s timeout")
 
-            if chunk_finish:
-                finish_reason = chunk_finish
-
-            # Accumulate reasoning_content from thinking models (not shown to user)
-            reasoning_piece = getattr(delta, "reasoning_content", None) or ""
-            if reasoning_piece:
-                collected_reasoning += reasoning_piece
-
-            # Stream text content to user
-            if delta.content:
-                collected_content += delta.content
-                yield ApiTextDeltaEvent(text=delta.content)
-
-            # Accumulate tool calls
-            if delta.tool_calls:
-                for tc_delta in delta.tool_calls:
-                    idx = tc_delta.index
-                    if idx not in collected_tool_calls:
-                        collected_tool_calls[idx] = {
-                            "id": tc_delta.id or "",
-                            "name": "",
-                            "arguments": "",
-                        }
-                    entry = collected_tool_calls[idx]
-                    if tc_delta.id:
-                        entry["id"] = tc_delta.id
-                    if tc_delta.function:
-                        if tc_delta.function.name:
-                            entry["name"] = tc_delta.function.name
-                        if tc_delta.function.arguments:
-                            entry["arguments"] += tc_delta.function.arguments
-
-            # Usage in chunk (if provider sends it)
-            if chunk.usage:
-                usage_data = {
-                    "input_tokens": chunk.usage.prompt_tokens or 0,
-                    "output_tokens": chunk.usage.completion_tokens or 0,
-                }
+        # Yield all collected text deltas (they were buffered during _consume_stream)
+        for ev in events:
+            yield ev
 
         # Build the final ConversationMessage
         content: list[ContentBlock] = []
