@@ -63,6 +63,7 @@ class QueryContext:
     max_turns: int | None = 200
     hook_executor: HookExecutor | None = None
     tool_metadata: dict[str, object] | None = None
+    security_layer: object | None = None  # SecurityLayer when enabled
 
 
 async def run_query(
@@ -250,6 +251,30 @@ async def _execute_tool_call(
                 is_error=True,
             )
 
+    # ── Security layer check (after permission, before execution) ──
+    security_layer = context.security_layer
+    if security_layer is not None:
+        from opencortex.security.security_layer import SecurityLayer
+        assert isinstance(security_layer, SecurityLayer)
+        tool_desc = getattr(tool, "description", "") or ""
+        # Get user query from first user message
+        user_query = ""
+        # call_history placeholder — could be derived from messages in future
+        sec_result = await security_layer.check_tool_call(
+            tool_name=tool_name,
+            tool_args=tool_input,
+            tool_description=tool_desc,
+            user_query=user_query,
+            call_history="",
+        )
+        if not sec_result.allowed:
+            log.info("security layer blocked: %s (%s)", tool_name, sec_result.reason)
+            return ToolResultBlock(
+                tool_use_id=tool_use_id,
+                content=sec_result.reason,
+                is_error=True,
+            )
+
     log.debug("executing %s ...", tool_name)
     t0 = time.monotonic()
     result = await tool.execute(
@@ -271,6 +296,16 @@ async def _execute_tool_call(
         content=result.output,
         is_error=result.is_error,
     )
+
+    # ── Security layer: sanitize tool output ──
+    if security_layer is not None and not tool_result.is_error and tool_result.content:
+        sanitized = await security_layer.sanitize_tool_result(tool_result.content)
+        tool_result = ToolResultBlock(
+            tool_use_id=tool_use_id,
+            content=sanitized,
+            is_error=False,
+        )
+
     if context.hook_executor is not None:
         await context.hook_executor.execute(
             HookEvent.POST_TOOL_USE,

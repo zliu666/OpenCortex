@@ -48,6 +48,7 @@ class QueryEngine:
         self._tool_metadata = tool_metadata or {}
         self._messages: list[ConversationMessage] = []
         self._cost_tracker = CostTracker()
+        self._security_layer: object | None = None
 
     @property
     def messages(self) -> list[ConversationMessage]:
@@ -63,6 +64,10 @@ class QueryEngine:
     def total_usage(self):
         """Return the total usage across all turns."""
         return self._cost_tracker.total
+
+    def set_security_layer(self, layer: object | None) -> None:
+        """Set or clear the security layer for future turns."""
+        self._security_layer = layer
 
     def clear(self) -> None:
         """Clear the in-memory conversation history."""
@@ -129,6 +134,7 @@ class QueryEngine:
             ask_user_prompt=self._ask_user_prompt,
             hook_executor=self._hook_executor,
             tool_metadata=self._tool_metadata,
+            security_layer=self._security_layer,
         )
         async for event, usage in run_query(context, self._messages):
             if usage is not None:
@@ -150,6 +156,7 @@ class QueryEngine:
             ask_user_prompt=self._ask_user_prompt,
             hook_executor=self._hook_executor,
             tool_metadata=self._tool_metadata,
+            security_layer=self._security_layer,
         )
         async for event, usage in run_query(context, self._messages):
             if usage is not None:
