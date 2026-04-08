@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from opencortex.mcp.client import McpClientManager
+    from opencortex.mcp.client import McpClientManager, McpServerNotConnectedError
     from opencortex.mcp.types import (
         McpConnectionStatus,
         McpHttpServerConfig,
@@ -20,6 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 __all__ = [
     "McpClientManager",
     "McpConnectionStatus",
+    "McpServerNotConnectedError",
     "McpHttpServerConfig",
     "McpJsonConfig",
     "McpResourceInfo",
@@ -36,6 +37,10 @@ def __getattr__(name: str):
         from opencortex.mcp.client import McpClientManager
 
         return McpClientManager
+    if name == "McpServerNotConnectedError":
+        from opencortex.mcp.client import McpServerNotConnectedError
+
+        return McpServerNotConnectedError
     if name == "load_mcp_server_configs":
         from opencortex.mcp.config import load_mcp_server_configs
 

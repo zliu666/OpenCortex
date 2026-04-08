@@ -6,13 +6,13 @@ import os
 import re
 import threading
 from collections import OrderedDict
-from pathlib import Path
 from typing import Any
 
 
 from opencortex.channels.bus.events import OutboundMessage
 from opencortex.channels.bus.queue import MessageBus
 from opencortex.channels.impl.base import BaseChannel
+from opencortex.channels.impl.base import resolve_channel_media_dir
 from opencortex.config.schema import FeishuConfig
 
 import importlib.util
@@ -717,8 +717,7 @@ class FeishuChannel(BaseChannel):
             (file_path, content_text) - file_path is None if download failed
         """
         loop = asyncio.get_running_loop()
-        media_dir = Path.home() / ".nanobot" / "media"
-        media_dir.mkdir(parents=True, exist_ok=True)
+        media_dir = resolve_channel_media_dir(self.name)
 
         data, filename = None, None
 
