@@ -1,7 +1,8 @@
 """Unified authentication management for OpenCortex."""
 
 from opencortex.auth.flows import ApiKeyFlow, BrowserFlow, DeviceCodeFlow
-from opencortex.auth.manager import AuthManager
+# AuthManager temporarily disabled - depends on ProviderProfile not yet merged
+# from opencortex.auth.manager import AuthManager
 from opencortex.auth.storage import (
     clear_provider_credentials,
     decrypt,
@@ -13,7 +14,7 @@ from opencortex.auth.storage import (
 )
 
 __all__ = [
-    "AuthManager",
+    # "AuthManager",  # disabled
     "ApiKeyFlow",
     "BrowserFlow",
     "DeviceCodeFlow",

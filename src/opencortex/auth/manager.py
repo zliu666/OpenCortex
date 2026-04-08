@@ -5,16 +5,20 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from opencortex.config.settings import (
-    ProviderProfile,
-    auth_source_provider_name,
-    auth_source_uses_api_key,
-    builtin_provider_profile_names,
-    credential_storage_provider_name,
-    default_auth_source_for_provider,
-    display_label_for_profile,
-    display_model_setting,
-)
+try:
+    from opencortex.config.settings import (
+        ProviderProfile,
+        auth_source_provider_name,
+        auth_source_uses_api_key,
+        builtin_provider_profile_names,
+        credential_storage_provider_name,
+        default_auth_source_for_provider,
+        display_label_for_profile,
+        display_model_setting,
+    )
+    _HAS_PROFILES = True
+except ImportError:
+    _HAS_PROFILES = False
 from opencortex.auth.storage import (
     clear_provider_credentials,
     load_external_binding,

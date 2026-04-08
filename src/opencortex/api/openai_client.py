@@ -363,7 +363,8 @@ class OpenAICompatibleClient:
             raise TimeoutError(f"Stream exceeded {STREAM_TIMEOUT}s timeout")
 
         # Yield all collected text deltas (they were buffered during _consume_stream)
-        yield from events
+        for evt in events:
+            yield evt
 
         # Build the final ConversationMessage
         content: list[ContentBlock] = []
