@@ -101,6 +101,9 @@ async def build_runtime(
     permission_prompt: PermissionPrompt | None = None,
     ask_user_prompt: AskUserPrompt | None = None,
     restore_messages: list[dict] | None = None,
+    cwd: str | None = None,
+    max_turns: int | None = None,
+    enforce_max_turns: bool = False,
 ) -> RuntimeBundle:
     """Build the shared runtime for an OpenCortex session."""
     settings = load_settings().merge_cli_overrides(
@@ -110,7 +113,7 @@ async def build_runtime(
         api_key=api_key,
         api_format=api_format,
     )
-    cwd = str(Path.cwd())
+    cwd = cwd or str(Path.cwd())
     plugins = load_plugins(settings, cwd)
     if api_client:
         resolved_api_client = api_client

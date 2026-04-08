@@ -38,6 +38,29 @@ class PermissionSettings(BaseModel):
     denied_commands: list[str] = Field(default_factory=list)
 
 
+class SandboxNetworkSettings(BaseModel):
+    """OS-level network restrictions."""
+    allowed_domains: list[str] = Field(default_factory=list)
+    denied_domains: list[str] = Field(default_factory=list)
+
+
+class SandboxFilesystemSettings(BaseModel):
+    """OS-level filesystem restrictions."""
+    allow_read: list[str] = Field(default_factory=list)
+    deny_read: list[str] = Field(default_factory=list)
+    allow_write: list[str] = Field(default_factory=lambda: ["."])
+    deny_write: list[str] = Field(default_factory=list)
+
+
+class SandboxSettings(BaseModel):
+    """Sandbox-runtime integration settings."""
+    enabled: bool = False
+    fail_if_unavailable: bool = False
+    enabled_platforms: list[str] = Field(default_factory=list)
+    network: SandboxNetworkSettings = Field(default_factory=SandboxNetworkSettings)
+    filesystem: SandboxFilesystemSettings = Field(default_factory=SandboxFilesystemSettings)
+
+
 class MemorySettings(BaseModel):
     """Memory system configuration."""
 
@@ -64,6 +87,7 @@ class Settings(BaseModel):
     memory: MemorySettings = Field(default_factory=MemorySettings)
     enabled_plugins: dict[str, bool] = Field(default_factory=dict)
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict)
+    sandbox: SandboxSettings = Field(default_factory=SandboxSettings)
 
     # UI
     theme: str = "default"
