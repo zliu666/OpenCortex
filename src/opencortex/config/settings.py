@@ -61,6 +61,15 @@ class SandboxSettings(BaseModel):
     filesystem: SandboxFilesystemSettings = Field(default_factory=SandboxFilesystemSettings)
 
 
+class SecuritySettings(BaseModel):
+    """AgentSys security layer configuration."""
+    enabled: bool = False  # master switch — default OFF
+    validator_enabled: bool = True
+    sanitizer_enabled: bool = True
+    privilege_assignor_enabled: bool = True
+    security_model: str = "glm-5.1"  # model used for security judgments
+
+
 class MemorySettings(BaseModel):
     """Memory system configuration."""
 
@@ -88,6 +97,7 @@ class Settings(BaseModel):
     enabled_plugins: dict[str, bool] = Field(default_factory=dict)
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict)
     sandbox: SandboxSettings = Field(default_factory=SandboxSettings)
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
 
     # UI
     theme: str = "default"
