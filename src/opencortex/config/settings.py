@@ -70,6 +70,28 @@ class SecuritySettings(BaseModel):
     security_model: str = "glm-5.1"  # model used for security judgments
 
 
+class ExecutionModelProviderConfig(BaseModel):
+    """Provider config for the execution (fast) model."""
+    api_key: str = ""
+    base_url: str = "https://api.minimaxi.com/v1"
+    api_format: str = "openai"  # "openai" or "anthropic"
+    model: str = "MiniMax-M2.7-highspeed"
+
+
+class DualModelSettings(BaseModel):
+    """Dual-model routing: primary (strong) + execution (fast)."""
+    enabled: bool = False
+    primary_model: str = "glm-5.1"  # 总管：复杂推理、规划、分析
+    execution_model: str = "MiniMax-M2.7-highspeed"  # 快执行：搜索、格式化
+    execution_provider: ExecutionModelProviderConfig = Field(default_factory=ExecutionModelProviderConfig)
+    # Agent types that should use the execution model
+    execution_agent_types: list[str] = Field(
+        default_factory=lambda: ["Explore", "claude-code-guide", "statusline-setup"]
+    )
+    # Fallback to primary model when execution model fails
+    fallback_on_error: bool = True
+
+
 class MemorySettings(BaseModel):
     """Memory system configuration."""
 
@@ -98,6 +120,7 @@ class Settings(BaseModel):
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict)
     sandbox: SandboxSettings = Field(default_factory=SandboxSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
+    dual_model: DualModelSettings = Field(default_factory=DualModelSettings)
 
     # UI
     theme: str = "default"

@@ -276,6 +276,9 @@ class TeammateSpawnConfig:
     model: str | None = None
     """Model override for this teammate."""
 
+    execution_provider_env: dict[str, str] | None = None
+    """Optional env vars for execution-model provider (base_url, api_key, api_format)."""
+
     system_prompt: str | None = None
     """System prompt resolved from workflow config."""
 

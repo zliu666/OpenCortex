@@ -52,6 +52,35 @@ class AgentTool(BaseTool):
         if arguments.subagent_type:
             agent_def = get_agent_definition(arguments.subagent_type)
 
+        # Dual-model routing: pick model based on agent type / task
+        resolved_model = arguments.model
+        execution_env = None
+        if resolved_model is None and agent_def and agent_def.model:
+            resolved_model = agent_def.model
+        if resolved_model is None or resolved_model == "inherit":
+            try:
+                from opencortex.config.settings import load_settings
+                from opencortex.engine.model_router import ModelRouter
+                settings = load_settings()
+                if settings.dual_model.enabled:
+                    router = ModelRouter(settings.dual_model)
+                    route = router.route(
+                        agent_type=arguments.subagent_type,
+                        task_description=arguments.description,
+                        explicit_model=None,
+                    )
+                    resolved_model = route.model
+                    if route.provider_key == "execution" and route.api_key:
+                        execution_env = {
+                            "OPENAI_API_KEY": route.api_key,
+                            "OPENAI_BASE_URL": route.base_url or "",
+                            "OPENHARNESS_API_FORMAT": route.api_format or "openai",
+                        }
+                    logger.info("Dual-model routed %s → %s (%s)",
+                                arguments.subagent_type or "agent", route.model, route.provider_key)
+            except Exception as exc:
+                logger.debug("Dual-model routing skipped: %s", exc)
+
         # Resolve team and agent name for the swarm backend
         team = arguments.team or "default"
         agent_name = arguments.subagent_type or "agent"
@@ -86,7 +115,8 @@ class AgentTool(BaseTool):
             prompt=arguments.prompt,
             cwd=str(context.cwd),
             parent_session_id="main",
-            model=arguments.model or (agent_def.model if agent_def else None),
+            model=resolved_model,
+            execution_provider_env=execution_env,
             system_prompt=agent_def.system_prompt if agent_def else None,
             permissions=agent_def.permissions if agent_def else [],
         )

@@ -49,6 +49,7 @@ class QueryEngine:
         self._messages: list[ConversationMessage] = []
         self._cost_tracker = CostTracker()
         self._security_layer: object | None = None
+        self._provider_key: str = "primary"  # for per-model cost tracking
 
     @property
     def messages(self) -> list[ConversationMessage]:
@@ -138,7 +139,7 @@ class QueryEngine:
         )
         async for event, usage in run_query(context, self._messages):
             if usage is not None:
-                self._cost_tracker.add(usage)
+                self._cost_tracker.add(usage, provider_key=self._provider_key)
             yield event
 
     async def continue_pending(self, *, max_turns: int | None = None) -> AsyncIterator[StreamEvent]:
@@ -160,5 +161,5 @@ class QueryEngine:
         )
         async for event, usage in run_query(context, self._messages):
             if usage is not None:
-                self._cost_tracker.add(usage)
+                self._cost_tracker.add(usage, provider_key=self._provider_key)
             yield event

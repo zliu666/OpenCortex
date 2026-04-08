@@ -57,6 +57,8 @@ class SubprocessBackend:
             plan_mode_required=config.plan_mode_required,
         )
         extra_env = build_inherited_env_vars()
+        if config.execution_provider_env:
+            extra_env.update(config.execution_provider_env)
 
         # Build environment export prefix for shell invocation
         env_prefix = " ".join(f"{k}={v!r}" for k, v in extra_env.items())
