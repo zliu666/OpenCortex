@@ -40,12 +40,14 @@ plugin_app = typer.Typer(name="plugin", help="Manage plugins")
 auth_app = typer.Typer(name="auth", help="Manage authentication")
 provider_app = typer.Typer(name="provider", help="Manage provider profiles")
 cron_app = typer.Typer(name="cron", help="Manage cron scheduler and jobs")
+serve_app = typer.Typer(name="serve", help="Start HTTP API server")
 
 app.add_typer(mcp_app)
 app.add_typer(plugin_app)
 app.add_typer(auth_app)
 app.add_typer(provider_app)
 app.add_typer(cron_app)
+app.add_typer(serve_app)
 
 
 # ---- mcp subcommands ----
@@ -1077,6 +1079,25 @@ def provider_remove(
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1)
     print(f"Removed provider profile: {name}", flush=True)
+
+# ---- serve subcommand ----
+
+@serve_app.callback(invoke_without_command=True)
+def serve_cmd(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
+    port: int = typer.Option(8765, "--port", help="Bind port"),
+) -> None:
+    """Start the OpenCortex HTTP API server."""
+    try:
+        import uvicorn
+    except ImportError:
+        print("Error: uvicorn is required. Install with: pip install uvicorn fastapi", file=sys.stderr)
+        raise typer.Exit(1)
+
+    from opencortex.api_server.app import app
+    print(f"OpenCortex API server starting on http://{host}:{port}", flush=True)
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
 
 # ---------------------------------------------------------------------------
 # Main command
