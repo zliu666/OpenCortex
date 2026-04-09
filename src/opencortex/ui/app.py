@@ -32,15 +32,12 @@ async def run_repl(
         await run_backend_host(
             cwd=cwd,
             model=model,
-            max_turns=max_turns,
             base_url=base_url,
             system_prompt=system_prompt,
             api_key=api_key,
             api_format=api_format,
             api_client=api_client,
             restore_messages=restore_messages,
-            enforce_max_turns=max_turns is not None,
-            permission_mode=permission_mode,
         )
         return
 
