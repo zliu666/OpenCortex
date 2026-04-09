@@ -140,7 +140,7 @@ async def a2a_create_task(request: Request):
         model = body.get("model", "glm-4-flash")
         max_tokens = body.get("max_tokens", 16384)
         temperature = body.get("temperature", 0.7)
-        max_turns = body.get("max_turns", 8)
+        max_turns = body.get("max_turns", 50))
         stream = body.get("stream", False)
 
         if not prompt:
@@ -189,7 +189,7 @@ async def a2a_stream_task(task_id: str, request: Request):
             task_id=task_id,
             prompt=task.prompt,
             model=task.model,
-            max_turns=8,
+            max_turns = body.get("max_turns", 50),
         ):
             yield event
 
