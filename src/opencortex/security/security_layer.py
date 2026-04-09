@@ -66,6 +66,11 @@ class SecurityLayer:
                 tool_name, tool_description,
             )
 
+        # Step 1b: extra scrutiny for Command tools
+        if privilege == ToolPrivilege.COMMAND:
+            log.info("security layer: %s classified as Command (write), applying strict validation",
+                     tool_name)
+
         # Step 2: validate safety + necessity
         if self._validator is not None:
             allowed = await self._validator.validate(
