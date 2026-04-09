@@ -1,3 +1,8 @@
+---
+name: debug
+description: Diagnose and fix bugs systematically.
+---
+
 # debug
 
 Diagnose and fix bugs systematically.

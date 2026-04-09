@@ -1,3 +1,8 @@
+---
+name: simplify
+description: Refactor code to be simpler and more maintainable.
+---
+
 # simplify
 
 Refactor code to be simpler and more maintainable.

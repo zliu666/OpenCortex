@@ -1,3 +1,8 @@
+---
+name: test
+description: Write and run tests for code.
+---
+
 # test
 
 Write and run tests for code.

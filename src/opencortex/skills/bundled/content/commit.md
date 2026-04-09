@@ -1,3 +1,8 @@
+---
+name: commit
+description: Create clean, well-structured git commits.
+---
+
 # commit
 
 Create clean, well-structured git commits.

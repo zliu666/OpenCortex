@@ -1,3 +1,8 @@
+---
+name: diagnose
+description: Diagnose why an agent run failed, regressed, or produced unexpected output — using structured evidence instead of intu
+---
+
 # diagnose
 
 Diagnose why an agent run failed, regressed, or produced unexpected output — using structured evidence instead of intuition.

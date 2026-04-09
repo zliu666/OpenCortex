@@ -1,3 +1,8 @@
+---
+name: review
+description: Review code for bugs, security issues, and quality.
+---
+
 # review
 
 Review code for bugs, security issues, and quality.

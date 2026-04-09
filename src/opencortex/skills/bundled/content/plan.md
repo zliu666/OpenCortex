@@ -1,3 +1,8 @@
+---
+name: plan
+description: Design an implementation plan before coding.
+---
+
 # plan
 
 Design an implementation plan before coding.
