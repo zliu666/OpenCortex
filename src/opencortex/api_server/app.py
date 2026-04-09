@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 
 from opencortex.cli import __version__
 from opencortex.config import load_settings
+from opencortex.tools import create_default_tool_registry
 from opencortex.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
@@ -22,6 +23,7 @@ from opencortex.a2a.agent_card import DEFAULT_AGENT_CARD
 from opencortex.a2a.task_manager import TaskManager, TaskStatus
 from opencortex.a2a.context_layer import ContextLayer, summarize_tool_output
 from opencortex.a2a.executor import TaskExecutor
+from opencortex.mcp_server import create_mcp_app
 
 from .models import (
     ErrorResponse,
@@ -227,6 +229,25 @@ async def a2a_cancel_task(task_id: str):
 
 
 logger.info("A2A routes registered")
+
+
+# MCP Server Routes (Phase 3: Tool exposure)
+@app.get("/mcp/tools")
+async def mcp_list_tools():
+    """List available MCP tools."""
+    settings = load_settings()
+    registry = create_default_tool_registry()
+    tools = []
+    for tool in registry.list_tools():
+        tools.append({
+            "name": tool.name,
+            "description": tool.description,
+            "schema": tool.to_api_schema(),
+        })
+    return {"tools": tools}
+
+
+logger.info("MCP routes registered")
 
 
 # Mount A2A Server (Phase 1: A2A Bridge)
