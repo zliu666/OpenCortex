@@ -107,7 +107,7 @@ class AgentTool(BaseTool):
                 zellij_pane_id = pane_result.pane_id
                 logger.info("Created Zellij pane %s for agent %s", zellij_pane_id, agent_name)
         except Exception as exc:
-            logger.debug("Zellij pane creation skipped: %s", exc)
+            logger.warning("Zellij pane creation failed for agent %s: %s", agent_name, exc)
 
         config = TeammateSpawnConfig(
             name=agent_name,
