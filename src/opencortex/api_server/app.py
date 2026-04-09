@@ -21,6 +21,7 @@ from opencortex.ui.runtime import build_runtime, close_runtime, handle_line, sta
 from opencortex.a2a.agent_card import DEFAULT_AGENT_CARD
 from opencortex.a2a.task_manager import TaskManager, TaskStatus
 from opencortex.a2a.context_layer import ContextLayer, summarize_tool_output
+from opencortex.a2a.executor import TaskExecutor
 
 from .models import (
     ErrorResponse,
@@ -43,6 +44,7 @@ session_manager = SessionManager()
 # A2A components (Phase 1: A2A Bridge)
 task_manager = TaskManager()
 context_layer = ContextLayer()
+task_executor = TaskExecutor(task_manager, context_layer)
 
 
 async def _noop_permission(tool_name: str, reason: str) -> bool:
@@ -129,13 +131,15 @@ async def a2a_get_agent_card():
 
 @app.post("/a2a/tasks")
 async def a2a_create_task(request: Request):
-    """Create a new task (A2A standard)."""
+    """Create and execute a new task (A2A standard + QueryEngine integration)."""
     try:
         body = await request.json()
         prompt = body.get("prompt", "")
         model = body.get("model", "glm-4-flash")
         max_tokens = body.get("max_tokens", 16384)
         temperature = body.get("temperature", 0.7)
+        max_turns = body.get("max_turns", 8)
+        stream = body.get("stream", False)
 
         if not prompt:
             raise HTTPException(status_code=400, detail="prompt is required")
@@ -147,11 +151,47 @@ async def a2a_create_task(request: Request):
             temperature=temperature
         )
 
-        # TODO: Start processing in background (Phase 2: integrate with QueryEngine)
+        if stream:
+            # Return task ID, client polls /a2a/tasks/{id}/stream for SSE
+            return {**task.to_dict(), "stream_url": f"/a2a/tasks/{task.task_id}/stream"}
+        else:
+            # Execute synchronously (Phase 2: background execution)
+            result = await task_executor.execute_task(
+                task_id=task.task_id,
+                prompt=prompt,
+                model=model,
+                max_turns=max_turns,
+            )
+            # Return updated task
+            updated = task_manager.get_task(task.task_id)
+            return {**updated.to_dict(), "execution": result}
 
-        return task.to_dict()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/a2a/tasks/{task_id}/stream")
+async def a2a_stream_task(task_id: str, request: Request):
+    """Stream task execution via SSE (A2A standard)."""
+    task = task_manager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.status not in (TaskStatus.SUBMITTED,):
+        raise HTTPException(status_code=400, detail=f"Task status is {task.status.value}, cannot stream")
+
+    from sse_starlette.sse import EventSourceResponse
+
+    async def event_generator():
+        async for event in task_executor.stream_task(
+            task_id=task_id,
+            prompt=task.prompt,
+            model=task.model,
+            max_turns=8,
+        ):
+            yield event
+
+    return EventSourceResponse(event_generator())
 
 
 @app.get("/a2a/tasks/{task_id}")
