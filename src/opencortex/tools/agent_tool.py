@@ -97,7 +97,10 @@ class AgentTool(BaseTool):
         zellij_pane_id = None
         try:
             from opencortex.swarm.zellij_backend import is_inside_zellij, get_zellij_backend
-            if is_inside_zellij():
+            _zellij_detected = is_inside_zellij()
+            with open("/tmp/zellij_agent_debug.log", "a") as _dbg: _dbg.write(f"is_inside={_zellij_detected} ZELLIJ={_os.environ.get("ZELLIJ","unset")}\n")
+            logger.warning("[AgentTool] is_inside_zellij=%s, env ZELLIJ=%s", _zellij_detected, os.environ.get("ZELLIJ", "(unset)"))
+            if _zellij_detected:
                 zellij = get_zellij_backend()
                 import asyncio
                 pane_result = await zellij.create_teammate_pane_in_swarm_view(
@@ -107,7 +110,8 @@ class AgentTool(BaseTool):
                 zellij_pane_id = pane_result.pane_id
                 logger.info("Created Zellij pane %s for agent %s", zellij_pane_id, agent_name)
         except Exception as exc:
-            logger.warning("Zellij pane creation failed for agent %s: %s", agent_name, exc)
+            import traceback
+            logger.warning("Zellij pane creation failed for agent %s: %s\n%s", agent_name, exc, traceback.format_exc())
 
         config = TeammateSpawnConfig(
             name=agent_name,

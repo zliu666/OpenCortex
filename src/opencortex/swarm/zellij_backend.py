@@ -189,10 +189,11 @@ class ZellijPaneBackend:
         direction = "Down" if is_first else "Right"
 
         zellij_cmd = [
-            "zellij", "cli", "new-pane",
-            "-c", cmd,
-            "--name", pane_title,
-            "-d", direction,
+            "zellij", "action", "new-pane",
+            "--direction", direction,
+            "--cwd", os.path.dirname(log_path),
+            "--",
+            "tail", "-f", log_path,
         ]
 
         try:
