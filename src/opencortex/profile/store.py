@@ -107,3 +107,10 @@ class ProfileStore:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
+
+    def __enter__(self) -> ProfileStore:
+        self._connect()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
