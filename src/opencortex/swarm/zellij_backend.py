@@ -32,6 +32,7 @@ import asyncio
 import logging
 import os
 import shutil
+import tempfile
 from typing import Any
 
 from opencortex.swarm.types import (
@@ -92,11 +93,14 @@ class ZellijPaneBackend:
     type: BackendType = "zellij"
     _pane_backend_type: PaneBackendType = "zellij"
 
+    _LOG_DIR = "/tmp/opencortex_panes"
+
     def __init__(self) -> None:
         self._panes: dict[PaneId, dict[str, Any]] = {}
         # Maps agent_id -> pane_id for quick lookup
         self._agent_panes: dict[str, PaneId] = {}
         self._is_first_teammate: bool = True
+        os.makedirs(self._LOG_DIR, exist_ok=True)
 
     # ------------------------------------------------------------------
     # PaneBackend protocol — properties
@@ -146,8 +150,15 @@ class ZellijPaneBackend:
         pane_title = f"oc:{name}"
         pane_id = pane_title  # Use title as stable ID
 
-        # Build the command: tail -f /dev/null keeps pane alive
-        cmd = f"tail -f /dev/null"
+        # Create a log file for this agent's output
+        safe_name = name.replace("/", "_").replace(" ", "_")
+        log_path = os.path.join(self._LOG_DIR, f"agent_{safe_name}.log")
+        # Touch the file so tail -f works immediately
+        with open(log_path, "w") as f:
+            pass
+
+        # Build the command: tail -f on the log file keeps pane alive and shows output
+        cmd = f"tail -f {log_path}"
 
         # Determine split direction
         direction = "Down" if is_first else "Right"
@@ -176,6 +187,7 @@ class ZellijPaneBackend:
             "color": color,
             "is_first": is_first,
             "status": "running",
+            "log_path": log_path,
         }
         self._agent_panes[name] = pane_id
 
@@ -286,11 +298,17 @@ class ZellijPaneBackend:
             logger.warning("[ZellijBackend] kill_pane failed: %s", exc)
             return False
 
-        # Clean up tracking
+        # Clean up tracking and log file
         name = meta.get("name")
+        log_path = meta.get("log_path")
         self._panes.pop(pane_id, None)
         if name:
             self._agent_panes.pop(name, None)
+        if log_path:
+            try:
+                os.remove(log_path)
+            except OSError:
+                pass
 
         logger.info("[ZellijBackend] Killed pane %s", pane_id)
         return True
@@ -329,8 +347,8 @@ class ZellijPaneBackend:
     ) -> None:
         """Write output text to the pane belonging to *agent_name*.
 
-        This is the primary method used by AgentTool to stream teammate
-        output into the corresponding Zellij pane.
+        Appends text directly to the agent's log file. The pane is running
+        ``tail -f`` on this file, so the output appears automatically.
         """
         pane_id = self._agent_panes.get(agent_name)
         if pane_id is None:
@@ -340,7 +358,18 @@ class ZellijPaneBackend:
             )
             return
 
-        await self._write_chars(pane_id, text)
+        meta = self._panes.get(pane_id)
+        log_path = meta.get("log_path") if meta else None
+        if log_path:
+            try:
+                with open(log_path, "a") as f:
+                    f.write(text)
+                    f.flush()
+            except OSError as exc:
+                logger.warning("[ZellijBackend] Failed to write log file %s: %s", log_path, exc)
+        else:
+            # Fallback to write-chars if no log path
+            await self._write_chars(pane_id, text)
 
     async def mark_completed(
         self,
@@ -358,14 +387,20 @@ class ZellijPaneBackend:
         if pane_id in self._panes:
             self._panes[pane_id]["status"] = "completed"
 
-        # Send Ctrl+C to stop any running process, then show completion
+        # Write completion banner to log file
         banner = f"\n\n✅ Agent '{agent_name}' completed."
         if summary:
             banner += f"\n📋 {summary}"
         banner += "\n"
-        await self._write_chars(pane_id, "\x03")  # Ctrl+C
-        await asyncio.sleep(0.1)
-        await self._write_chars(pane_id, banner)
+        meta = self._panes.get(pane_id)
+        log_path = meta.get("log_path") if meta else None
+        if log_path:
+            try:
+                with open(log_path, "a") as f:
+                    f.write(banner)
+                    f.flush()
+            except OSError:
+                pass
 
     def get_pane_status(self, agent_name: str) -> str | None:
         """Return the status of the pane for *agent_name*."""
