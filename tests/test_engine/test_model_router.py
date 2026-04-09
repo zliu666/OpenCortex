@@ -79,6 +79,96 @@ class TestModelRouter:
         assert route.provider_key == "primary"
 
 
+class TestComplexMessageDetection:
+    """Tests for the Hermes-style complex message heuristic."""
+
+    def _make_router(self) -> ModelRouter:
+        return ModelRouter(DualModelSettings(
+            enabled=True,
+            primary_model="glm-5.1",
+            execution_model="MiniMax-M2.7-highspeed",
+            execution_agent_types=["Explore"],
+        ))
+
+    # --- is_complex_message unit tests ---
+
+    def test_empty_message_not_complex(self):
+        router = self._make_router()
+        assert not router.is_complex_message("")
+
+    def test_simple_greeting_not_complex(self):
+        router = self._make_router()
+        assert not router.is_complex_message("你好")
+
+    @pytest.mark.parametrize("msg", [
+        "帮我 debug 这个错误",
+        "请 implement 一个新功能",
+        "refactor 这段代码",
+        "出现了 exception",
+        "分析一下这个 error",
+        "请 review 这个 PR",
+        "设计一个 architecture",
+        "跑一下 pytest",
+    ])
+    def test_complex_keywords_detected(self, msg: str):
+        router = self._make_router()
+        assert router.is_complex_message(msg), f"Should detect complex keyword in: {msg}"
+
+    def test_url_detected(self):
+        router = self._make_router()
+        assert router.is_complex_message("请看 https://example.com")
+        assert router.is_complex_message("访问 www.example.org")
+
+    def test_code_fence_detected(self):
+        router = self._make_router()
+        assert router.is_complex_message("```python\nprint('hi')\n```")
+
+    def test_inline_code_detected(self):
+        router = self._make_router()
+        assert router.is_complex_message("运行 `pip install foo`")
+
+    def test_multiline_detected(self):
+        router = self._make_router()
+        msg = "第一行\n第二行\n第三行"
+        assert router.is_complex_message(msg)
+
+    def test_long_message_detected(self):
+        router = self._make_router()
+        msg = "a" * 201
+        assert router.is_complex_message(msg)
+
+    def test_short_simple_message_not_complex(self):
+        router = self._make_router()
+        assert not router.is_complex_message("今天天气怎么样")
+
+    # --- route() integration with user_message ---
+
+    def test_complex_message_routes_to_primary(self):
+        router = self._make_router()
+        route = router.route(user_message="帮我 debug 一下这个 traceback")
+        assert route.provider_key == "primary"
+
+    def test_simple_message_routes_to_primary_default(self):
+        """Without task_description, even simple messages go to primary (default)."""
+        router = self._make_router()
+        route = router.route(user_message="你好")
+        assert route.provider_key == "primary"
+
+    def test_simple_message_with_simple_task_routes_to_execution(self):
+        router = self._make_router()
+        route = router.route(user_message="你好", task_description="搜索文件")
+        assert route.provider_key == "execution"
+
+    def test_complex_message_overrides_simple_task(self):
+        """Complex message detection takes priority over simple task keywords."""
+        router = self._make_router()
+        route = router.route(
+            user_message="帮我 debug 搜索功能",
+            task_description="搜索文件",
+        )
+        assert route.provider_key == "primary"
+
+
 class TestDualModelSettings:
     """Tests for DualModelSettings config."""
 

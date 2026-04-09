@@ -2,12 +2,20 @@
 
 Routes agent tasks to the appropriate model based on agent type,
 task description, or explicit configuration.
+
+Routing strategy (evaluated in order):
+1. Explicit model override (from AgentDefinition.model or AgentToolInput.model)
+2. Agent type in execution_agent_types list → execution model
+3. Message complexity heuristic → complex tasks stay on primary
+4. Task description heuristic → execution model for simple tasks
+5. Default → primary model
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -50,6 +58,7 @@ class ModelRouter:
         agent_type: str | None = None,
         task_description: str | None = None,
         explicit_model: str | None = None,
+        user_message: str | None = None,
     ) -> ModelRoute:
         """Determine which model to use.
 
@@ -58,6 +67,7 @@ class ModelRouter:
             task_description: Short description of the task.
             explicit_model: An explicit model override (from AgentToolInput.model
                 or AgentDefinition.model).
+            user_message: The actual user message for complexity analysis.
 
         Returns:
             ModelRoute with resolved model and provider config.
@@ -79,6 +89,10 @@ class ModelRouter:
         # Agent type match
         if agent_type and agent_type in s.execution_agent_types:
             return self._execution_route()
+
+        # Message complexity check — complex messages stay on primary
+        if user_message and self.is_complex_message(user_message):
+            return self._primary_route()
 
         # Task description heuristic
         if task_description and self._is_simple_task(task_description):
@@ -105,6 +119,61 @@ class ModelRouter:
         """Check if a model name refers to the execution model."""
         exec_model = self._settings.execution_model.lower()
         return model.lower() == exec_model or model.lower().startswith("minimax")
+
+    # Keywords that signal complex work → keep on primary model.
+    # Derived from Hermes smart_model_routing.
+    _COMPLEX_KEYWORDS = frozenset({
+        # Debugging & errors
+        "debug", "debugging", "traceback", "stacktrace", "exception", "error",
+        # Implementation
+        "implement", "implementation", "refactor", "patch",
+        # Analysis & planning
+        "analyze", "analysis", "investigate", "architecture", "design",
+        "compare", "benchmark", "optimize", "optimise", "review",
+        # Dev & infra
+        "plan", "planning", "delegate", "subagent",
+        "cron", "docker", "kubernetes", "terminal", "shell",
+        # Testing
+        "pytest", "test", "tests",
+        # Tool usage
+        "tool", "tools",
+    })
+
+    _URL_RE = re.compile(r"https?://|www\.", re.IGNORECASE)
+
+    def is_complex_message(self, message: str) -> bool:
+        """Check if a user message looks complex (should stay on primary model).
+
+        Uses multiple signals: complex keywords, code fences, URLs,
+        message length, and multi-line content.
+        """
+        text = (message or "").strip()
+        if not text:
+            return False
+
+        # Code fences or inline code → complex
+        if "```" in text or "`" in text:
+            return True
+
+        # URLs → complex
+        if self._URL_RE.search(text):
+            return True
+
+        # Multi-line (more than 1 newline) → complex
+        if text.count("\n") > 1:
+            return True
+
+        # Complex keywords → complex
+        lowered = text.lower()
+        words = {token.strip(".,:;!?()[]{}\"'`") for token in lowered.split()}
+        if words & self._COMPLEX_KEYWORDS:
+            return True
+
+        # Very long message → complex
+        if len(text) > 200:
+            return True
+
+        return False
 
     @staticmethod
     def _is_simple_task(description: str) -> bool:
