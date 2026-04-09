@@ -56,6 +56,6 @@ class ToolCallValidator:
             if hasattr(event, "text"):
                 response_text += event.text
 
-        result = "true" in response_text.lower()
+        result = response_text.strip().lower() == "true"
         log.debug("validator result for %s: %s (raw: %s)", tool_name, result, response_text.strip())
         return result
