@@ -426,7 +426,7 @@ async def _judge_should_extend(
         judge_api = context.api_client
         response = await judge_api.stream_message(
             ApiMessageRequest(
-                model="glm-5-turbo",  # strongest model for judgment
+                model="glm-5-turbo",  # Judge uses strongest model
                 messages=[{"role": "user", "content": judge_prompt}],
                 system_prompt=_JUDGE_SYSTEM_PROMPT,
                 max_tokens=10,
