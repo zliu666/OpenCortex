@@ -176,13 +176,14 @@ async def run_query(
 
         messages.append(ConversationMessage(role="user", content=tool_results))
 
-    # --- Judge Agent: auto-extend turns when limit reached -----------
-    if context.max_turns is not None and turn_count >= context.max_turns:
-        should_continue = await _judge_should_extend(context, messages, turn_count)
-        if should_continue:
-            turn_count = 0  # reset counter, continue in the same loop
-            continue
-        raise MaxTurnsExceeded(context.max_turns)
+        # --- Judge Agent: auto-extend turns when limit reached -------
+        if context.max_turns is not None and turn_count >= context.max_turns:
+            should_continue = await _judge_should_extend(context, messages, turn_count)
+            if should_continue:
+                turn_count = 0  # reset counter, continue in the same loop
+                continue
+            raise MaxTurnsExceeded(context.max_turns)
+
     raise RuntimeError("Query loop exited without a max_turns limit or final response")
 
 
