@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 
 from opencortex.cli import __version__
 from opencortex.config import load_settings
@@ -18,6 +18,9 @@ from opencortex.engine.stream_events import (
     ToolExecutionStarted,
 )
 from opencortex.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
+from opencortex.a2a.agent_card import DEFAULT_AGENT_CARD
+from opencortex.a2a.task_manager import TaskManager, TaskStatus
+from opencortex.a2a.context_layer import ContextLayer, summarize_tool_output
 
 from .models import (
     ErrorResponse,
@@ -36,6 +39,10 @@ from .session_manager import Session, SessionManager
 logger = logging.getLogger("opencortex.api_server")
 
 session_manager = SessionManager()
+
+# A2A components (Phase 1: A2A Bridge)
+task_manager = TaskManager()
+context_layer = ContextLayer()
 
 
 async def _noop_permission(tool_name: str, reason: str) -> bool:
@@ -111,6 +118,86 @@ app = FastAPI(
     version=__version__,
     lifespan=lifespan,
 )
+
+
+# A2A Routes (Phase 1: A2A Bridge)
+@app.get("/a2a/agent-card")
+async def a2a_get_agent_card():
+    """Get Agent Card (A2A standard)."""
+    return DEFAULT_AGENT_CARD.to_dict()
+
+
+@app.post("/a2a/tasks")
+async def a2a_create_task(request: Request):
+    """Create a new task (A2A standard)."""
+    try:
+        body = await request.json()
+        prompt = body.get("prompt", "")
+        model = body.get("model", "glm-4-flash")
+        max_tokens = body.get("max_tokens", 16384)
+        temperature = body.get("temperature", 0.7)
+
+        if not prompt:
+            raise HTTPException(status_code=400, detail="prompt is required")
+
+        task = task_manager.create_task(
+            prompt=prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+
+        # TODO: Start processing in background (Phase 2: integrate with QueryEngine)
+
+        return task.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/a2a/tasks/{task_id}")
+async def a2a_get_task(task_id: str):
+    """Get task by ID (A2A standard)."""
+    task = task_manager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task.to_dict()
+
+
+@app.get("/a2a/tasks")
+async def a2a_list_tasks(limit: int = 100, status: Optional[str] = None):
+    """List tasks (A2A standard)."""
+    status_filter = None
+    if status:
+        try:
+            status_filter = TaskStatus(status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+
+    tasks = task_manager.list_tasks(limit=limit, status_filter=status_filter)
+    return {"tasks": [t.to_dict() for t in tasks]}
+
+
+@app.delete("/a2a/tasks/{task_id}")
+async def a2a_cancel_task(task_id: str):
+    """Cancel a task (A2A standard)."""
+    success = task_manager.cancel_task(task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found or cannot be cancelled")
+    return {"status": "cancelled"}
+
+
+logger.info("A2A routes registered")
+
+
+# Mount A2A Server (Phase 1: A2A Bridge)
+# This must be done AFTER app is created
+try:
+    from opencortex.a2a.server import create_app as create_a2a_app
+    a2a_app = create_a2a_app()
+    app.mount("/a2a", a2a_app)
+    logger.info("A2A Server mounted at /a2a")
+except Exception as e:
+    logger.warning(f"A2A Server not available: {e}")
 
 
 @app.get("/status", response_model=StatusResponse)
