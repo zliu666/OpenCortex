@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from openharness.ui.input import InputSession
-from openharness.ui.output import OutputRenderer
+from opencortex.ui.input import InputSession
+from opencortex.ui.output import OutputRenderer
 
 
 def test_input_session_updates_prompt_modes():

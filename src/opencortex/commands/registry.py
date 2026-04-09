@@ -1064,61 +1064,8 @@ def create_default_command_registry() -> CommandRegistry:
         lines.extend(f"{key} -> {command}" for key, command in sorted(bindings.items()))
         return CommandResult(message="\n".join(lines))
 
-    async def _vim_handler(args: str, context: CommandContext) -> CommandResult:
-        settings = load_settings()
-        current = (
-            context.app_state.get().vim_enabled
-            if context.app_state is not None
-            else settings.vim_mode
-        )
-        action = args.strip() or "show"
-        if action == "show":
-            return CommandResult(message=f"Vim mode: {'on' if current else 'off'}")
-        enabled = {"on": True, "off": False, "toggle": not current}.get(action)
-        if enabled is None:
-            return CommandResult(message="Usage: /vim [show|on|off|toggle]")
-        settings.vim_mode = enabled
-        save_settings(settings)
-        if context.app_state is not None:
-            context.app_state.set(vim_enabled=enabled)
-        return CommandResult(message=f"Vim mode {'enabled' if enabled else 'disabled'}.")
-
-    async def _voice_handler(args: str, context: CommandContext) -> CommandResult:
-        from opencortex.voice import extract_keyterms, inspect_voice_capabilities
-
-        settings = load_settings()
-        diagnostics = inspect_voice_capabilities(detect_provider(settings))
-        current = (
-            context.app_state.get().voice_enabled
-            if context.app_state is not None
-            else settings.voice_mode
-        )
-        tokens = args.split(maxsplit=1)
-        if not tokens or tokens[0] == "show":
-            return CommandResult(
-                message=(
-                    f"Voice mode: {'on' if current else 'off'}\n"
-                    f"Available: {'yes' if diagnostics.available else 'no'}\n"
-                    f"Recorder: {diagnostics.recorder or '(none)'}\n"
-                    f"Reason: {diagnostics.reason}"
-                )
-            )
-        if tokens[0] == "keyterms" and len(tokens) == 2:
-            keyterms = extract_keyterms(tokens[1])
-            return CommandResult(message="\n".join(keyterms) if keyterms else "(no keyterms)")
-        enabled = {"on": True, "off": False, "toggle": not current}.get(tokens[0])
-        if enabled is None:
-            return CommandResult(message="Usage: /voice [show|on|off|toggle|keyterms TEXT]")
-        settings.voice_mode = enabled
-        save_settings(settings)
-        if context.app_state is not None:
-            context.app_state.set(
-                voice_enabled=enabled,
-                voice_available=diagnostics.available,
-                voice_reason=diagnostics.reason,
-            )
-        return CommandResult(message=f"Voice mode {'enabled' if enabled else 'disabled'}.")
-
+    
+    
     async def _doctor_handler(_: str, context: CommandContext) -> CommandResult:
         settings = load_settings()
         memory_dir = get_project_memory_dir(context.cwd)
@@ -1337,8 +1284,6 @@ def create_default_command_registry() -> CommandRegistry:
     registry.register(SlashCommand("theme", "Show or update the theme", _theme_handler))
     registry.register(SlashCommand("output-style", "Show or update output style", _output_style_handler))
     registry.register(SlashCommand("keybindings", "Show resolved keybindings", _keybindings_handler))
-    registry.register(SlashCommand("vim", "Show or update Vim mode", _vim_handler))
-    registry.register(SlashCommand("voice", "Show or update voice mode", _voice_handler))
     registry.register(SlashCommand("doctor", "Show environment diagnostics", _doctor_handler))
     registry.register(SlashCommand("diff", "Show git diff output", _diff_handler))
     registry.register(SlashCommand("branch", "Show git branch information", _branch_handler))

@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from openharness.commands.registry import CommandContext, create_default_command_registry
-from openharness.config.settings import load_settings
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.permissions import PermissionChecker
-from openharness.state import AppState, AppStateStore
-from openharness.tools import create_default_tool_registry
+from opencortex.commands.registry import CommandContext, create_default_command_registry
+from opencortex.config.settings import load_settings
+from opencortex.engine.messages import ConversationMessage, TextBlock
+from opencortex.engine.query_engine import QueryEngine
+from opencortex.permissions import PermissionChecker
+from opencortex.state import AppState, AppStateStore
+from opencortex.tools import create_default_tool_registry
 
 
 class FakeApiClient:

@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.hooks import HookEvent, HookExecutionContext, HookExecutor
-from openharness.hooks.loader import HookRegistry
-from openharness.hooks.schemas import CommandHookDefinition, PromptHookDefinition
+from opencortex.api.client import ApiMessageCompleteEvent
+from opencortex.api.usage import UsageSnapshot
+from opencortex.engine.messages import ConversationMessage, TextBlock
+from opencortex.hooks import HookEvent, HookExecutionContext, HookExecutor
+from opencortex.hooks.loader import HookRegistry
+from opencortex.hooks.schemas import CommandHookDefinition, PromptHookDefinition
 
 
 class FakeApiClient:

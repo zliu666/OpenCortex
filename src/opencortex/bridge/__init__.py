@@ -1,3 +1,5 @@
+"""Bridge exports. DEPRECATED: Use opencortex.a2a instead."""
+
 """Bridge exports."""
 
 from opencortex.bridge.manager import BridgeSessionManager, BridgeSessionRecord, get_bridge_manager

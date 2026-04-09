@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from openharness.tools import create_default_tool_registry
-from openharness.tools.base import ToolExecutionContext
+from opencortex.tools import create_default_tool_registry
+from opencortex.tools.base import ToolExecutionContext
 
 
 @pytest.mark.asyncio

@@ -38,18 +38,18 @@ RESULTS: dict[str, bool] = {}
 # ====================================================================
 
 def make_engine(system_prompt="You are a helpful assistant. Be concise.", cwd=None, tools=None):
-    from openharness.api.client import AnthropicApiClient
-    from openharness.config.settings import PermissionSettings
-    from openharness.engine.query_engine import QueryEngine
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.tools.file_read_tool import FileReadTool
-    from openharness.tools.file_write_tool import FileWriteTool
-    from openharness.tools.file_edit_tool import FileEditTool
-    from openharness.tools.glob_tool import GlobTool
-    from openharness.tools.grep_tool import GrepTool
+    from opencortex.api.client import AnthropicApiClient
+    from opencortex.config.settings import PermissionSettings
+    from opencortex.engine.query_engine import QueryEngine
+    from opencortex.permissions.checker import PermissionChecker
+    from opencortex.permissions.modes import PermissionMode
+    from opencortex.tools.base import ToolRegistry
+    from opencortex.tools.bash_tool import BashTool
+    from opencortex.tools.file_read_tool import FileReadTool
+    from opencortex.tools.file_write_tool import FileWriteTool
+    from opencortex.tools.file_edit_tool import FileEditTool
+    from opencortex.tools.glob_tool import GlobTool
+    from opencortex.tools.grep_tool import GrepTool
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
     reg = ToolRegistry()
@@ -63,7 +63,7 @@ def make_engine(system_prompt="You are a helpful assistant. Be concise.", cwd=No
 
 
 def collect(events):
-    from openharness.engine.stream_events import (
+    from opencortex.engine.stream_events import (
         AssistantTextDelta, AssistantTurnComplete,
         ToolExecutionStarted, ToolExecutionCompleted,
     )
@@ -100,10 +100,10 @@ async def run_test(name, coro):
 # ====================================================================
 async def test_hooks_command_block():
     """Register a pre_tool_use command hook that blocks bash, verify it fires."""
-    from openharness.hooks.events import HookEvent
-    from openharness.hooks.loader import HookRegistry
-    from openharness.hooks.schemas import CommandHookDefinition
-    from openharness.hooks.executor import HookExecutor, HookExecutionContext
+    from opencortex.hooks.events import HookEvent
+    from opencortex.hooks.loader import HookRegistry
+    from opencortex.hooks.schemas import CommandHookDefinition
+    from opencortex.hooks.executor import HookExecutor, HookExecutionContext
 
     registry = HookRegistry()
     # Hook: run 'echo BLOCKED' when bash is used — block_on_failure means if exit!=0 it blocks
@@ -118,7 +118,7 @@ async def test_hooks_command_block():
     registry.register(HookEvent.PRE_TOOL_USE, hook)
     print(f"  Registered pre_tool_use hook: {hook}")
 
-    from openharness.api.client import AnthropicApiClient
+    from opencortex.api.client import AnthropicApiClient
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
     ctx = HookExecutionContext(cwd=Path.cwd(), api_client=api, default_model=MODEL)
     executor = HookExecutor(registry, ctx)
@@ -145,10 +145,10 @@ async def test_hooks_command_block():
 # ====================================================================
 async def test_hooks_post_tool_use():
     """Register a post_tool_use hook that logs tool output, verify it runs."""
-    from openharness.hooks.events import HookEvent
-    from openharness.hooks.loader import HookRegistry
-    from openharness.hooks.schemas import CommandHookDefinition
-    from openharness.hooks.executor import HookExecutor, HookExecutionContext
+    from opencortex.hooks.events import HookEvent
+    from opencortex.hooks.loader import HookRegistry
+    from opencortex.hooks.schemas import CommandHookDefinition
+    from opencortex.hooks.executor import HookExecutor, HookExecutionContext
 
     registry = HookRegistry()
     hook = CommandHookDefinition(
@@ -158,7 +158,7 @@ async def test_hooks_post_tool_use():
     )
     registry.register(HookEvent.POST_TOOL_USE, hook)
 
-    from openharness.api.client import AnthropicApiClient
+    from opencortex.api.client import AnthropicApiClient
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
     ctx = HookExecutionContext(cwd=Path.cwd(), api_client=api, default_model=MODEL)
     executor = HookExecutor(registry, ctx)
@@ -179,19 +179,19 @@ async def test_hooks_post_tool_use():
 @pytest.mark.skipif(_SKIP_REAL_API, reason="Needs real API + AutoAgent")
 async def test_hooks_in_agent_loop():
     """Hook that blocks 'rm' commands integrated into real agent loop."""
-    from openharness.api.client import AnthropicApiClient
-    from openharness.config.settings import PermissionSettings
-    from openharness.engine.query import QueryContext, run_query
-    from openharness.engine.messages import ConversationMessage
-    from openharness.engine.stream_events import AssistantTextDelta, ToolExecutionStarted, ToolExecutionCompleted
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.hooks.events import HookEvent
-    from openharness.hooks.loader import HookRegistry
-    from openharness.hooks.schemas import CommandHookDefinition
-    from openharness.hooks.executor import HookExecutor, HookExecutionContext
+    from opencortex.api.client import AnthropicApiClient
+    from opencortex.config.settings import PermissionSettings
+    from opencortex.engine.query import QueryContext, run_query
+    from opencortex.engine.messages import ConversationMessage
+    from opencortex.engine.stream_events import AssistantTextDelta, ToolExecutionStarted, ToolExecutionCompleted
+    from opencortex.permissions.checker import PermissionChecker
+    from opencortex.permissions.modes import PermissionMode
+    from opencortex.tools.base import ToolRegistry
+    from opencortex.tools.bash_tool import BashTool
+    from opencortex.hooks.events import HookEvent
+    from opencortex.hooks.loader import HookRegistry
+    from opencortex.hooks.schemas import CommandHookDefinition
+    from opencortex.hooks.executor import HookExecutor, HookExecutionContext
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
@@ -238,8 +238,8 @@ async def test_hooks_in_agent_loop():
 # ====================================================================
 async def test_skills_load():
     """Create skill files, load them, verify registry."""
-    from openharness.skills.registry import SkillRegistry
-    from openharness.skills.loader import load_user_skills
+    from opencortex.skills.registry import SkillRegistry
+    from opencortex.skills.loader import load_user_skills
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create skill files
@@ -257,7 +257,7 @@ Fetch the PR diff, review for bugs, style issues, and security problems.
 """)
 
         # Monkey-patch skills dir
-        import openharness.skills.loader as sl
+        import opencortex.skills.loader as sl
         orig = sl.get_user_skills_dir
         sl.get_user_skills_dir = lambda: Path(tmpdir)
 
@@ -289,7 +289,7 @@ Fetch the PR diff, review for bugs, style issues, and security problems.
 # ====================================================================
 async def test_plugins_load():
     """Create a plugin directory, load it, verify manifest and skills."""
-    from openharness.plugins.loader import load_plugin
+    from opencortex.plugins.loader import load_plugin
 
     with tempfile.TemporaryDirectory() as tmpdir:
         plugin_dir = Path(tmpdir) / "my-plugin"
@@ -330,20 +330,20 @@ Build and deploy the app to production.
 # ====================================================================
 async def test_memory_lifecycle():
     """Test full memory lifecycle: add → list → search → remove."""
-    from openharness.memory.manager import list_memory_files, add_memory_entry, remove_memory_entry
-    from openharness.memory.search import find_relevant_memories
-    from openharness.memory.scan import scan_memory_files
+    from opencortex.memory.manager import list_memory_files, add_memory_entry, remove_memory_entry
+    from opencortex.memory.search import find_relevant_memories
+    from opencortex.memory.scan import scan_memory_files
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Monkey-patch memory dir
-        import openharness.memory.paths as mp
+        import opencortex.memory.paths as mp
         orig = mp.get_project_memory_dir
-        mem_dir = Path(tmpdir) / ".openharness" / "memory"
+        mem_dir = Path(tmpdir) / ".opencortex" / "memory"
         mem_dir.mkdir(parents=True, exist_ok=True)
         mp.get_project_memory_dir = lambda cwd: mem_dir
 
         # Also patch entrypoint
-        import openharness.memory.manager as mm
+        import opencortex.memory.manager as mm
         orig_ep = mm.get_memory_entrypoint
         mm.get_memory_entrypoint = lambda cwd: mem_dir / "MEMORY.md"
 
@@ -383,12 +383,12 @@ async def test_memory_lifecycle():
 # ====================================================================
 async def test_session_storage():
     """Test session save/load/list/export cycle."""
-    from openharness.services.session_storage import (
+    from opencortex.services.session_storage import (
         save_session_snapshot, load_session_snapshot,
         list_session_snapshots, export_session_markdown,
     )
-    from openharness.engine.messages import ConversationMessage, TextBlock
-    from openharness.api.usage import UsageSnapshot
+    from opencortex.engine.messages import ConversationMessage, TextBlock
+    from opencortex.api.usage import UsageSnapshot
 
     with tempfile.TemporaryDirectory() as tmpdir:
         messages = [
@@ -436,8 +436,8 @@ async def test_session_storage():
 # ====================================================================
 async def test_config_settings():
     """Test settings loading, env var overrides, and path functions."""
-    from openharness.config.settings import Settings, load_settings
-    from openharness.config.paths import (
+    from opencortex.config.settings import Settings, load_settings
+    from opencortex.config.paths import (
         get_config_dir, get_sessions_dir, get_tasks_dir,
     )
 
@@ -476,7 +476,7 @@ async def test_config_settings():
         and s2.verbose is True
         and loaded.model == "custom-model"
         and loaded.memory.enabled is False
-        and config_dir.name == ".openharness"
+        and config_dir.name == ".opencortex"
     )
 
 
@@ -485,7 +485,7 @@ async def test_config_settings():
 # ====================================================================
 async def test_commands_registry():
     """Test slash command registration and lookup."""
-    from openharness.commands.registry import (
+    from opencortex.commands.registry import (
         CommandRegistry, SlashCommand, CommandResult, CommandContext,
     )
 
@@ -515,7 +515,7 @@ async def test_commands_registry():
     print(f"  Help text: {len(help_text)} chars, contains 'test': {'test' in help_text}")
 
     # Default registry
-    from openharness.commands.registry import create_default_command_registry
+    from opencortex.commands.registry import create_default_command_registry
     default_reg = create_default_command_registry()
     cmds = default_reg.list_commands()
     print(f"  Default registry: {len(cmds)} commands")
@@ -534,8 +534,8 @@ async def test_commands_registry():
 @pytest.mark.skipif(_SKIP_REAL_API, reason="Needs real API + AutoAgent")
 async def test_web_fetch_real():
     """Agent fetches a real URL and summarizes it."""
-    from openharness.tools.web_fetch_tool import WebFetchTool
-    from openharness.tools.bash_tool import BashTool
+    from opencortex.tools.web_fetch_tool import WebFetchTool
+    from opencortex.tools.bash_tool import BashTool
 
     engine = make_engine(
         "You are a web researcher. Fetch URLs when asked and summarize the content.",
@@ -556,7 +556,7 @@ async def test_web_fetch_real():
 @pytest.mark.skipif(_SKIP_REAL_API, reason="Needs local environment")
 async def test_worktree_real_git():
     """Create a real git worktree, list it, remove it."""
-    from openharness.swarm.worktree import WorktreeManager
+    from opencortex.swarm.worktree import WorktreeManager
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Init a git repo
@@ -591,7 +591,7 @@ async def test_worktree_real_git():
 # ====================================================================
 async def test_mcp_types():
     """Test MCP config model validation."""
-    from openharness.mcp.types import McpStdioServerConfig, McpToolInfo, McpConnectionStatus
+    from opencortex.mcp.types import McpStdioServerConfig, McpToolInfo, McpConnectionStatus
 
     # Stdio config
     stdio = McpStdioServerConfig(command="npx", args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"])
@@ -613,7 +613,7 @@ async def test_mcp_types():
 # ====================================================================
 async def test_config_paths():
     """Verify all config path functions return sensible paths."""
-    from openharness.config.paths import (
+    from opencortex.config.paths import (
         get_config_dir, get_config_file_path, get_data_dir,
         get_logs_dir, get_sessions_dir, get_tasks_dir,
     )
@@ -629,8 +629,8 @@ async def test_config_paths():
     for name, p in paths.items():
         print(f"  {name}: {p}")
 
-    # All should be under ~/.openharness
-    all_under_home = all(".openharness" in str(p) for p in paths.values())
+    # All should be under ~/.opencortex
+    all_under_home = all(".opencortex" in str(p) for p in paths.values())
     return all_under_home
 
 
@@ -640,24 +640,24 @@ async def test_config_paths():
 @pytest.mark.skipif(_SKIP_REAL_API, reason="Needs real API + AutoAgent")
 async def test_combined_hooks_skills_agent():
     """Combined test: load skills, register hooks, run agent on AutoAgent."""
-    from openharness.skills.registry import SkillRegistry
-    from openharness.skills.types import SkillDefinition
-    from openharness.hooks.events import HookEvent
-    from openharness.hooks.loader import HookRegistry
-    from openharness.hooks.schemas import CommandHookDefinition
-    from openharness.hooks.executor import HookExecutor, HookExecutionContext
-    from openharness.api.client import AnthropicApiClient
-    from openharness.config.settings import PermissionSettings
-    from openharness.engine.query import QueryContext, run_query
-    from openharness.engine.messages import ConversationMessage
-    from openharness.engine.stream_events import AssistantTextDelta, ToolExecutionStarted
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.tools.file_read_tool import FileReadTool
-    from openharness.tools.glob_tool import GlobTool
-    from openharness.tools.grep_tool import GrepTool
+    from opencortex.skills.registry import SkillRegistry
+    from opencortex.skills.types import SkillDefinition
+    from opencortex.hooks.events import HookEvent
+    from opencortex.hooks.loader import HookRegistry
+    from opencortex.hooks.schemas import CommandHookDefinition
+    from opencortex.hooks.executor import HookExecutor, HookExecutionContext
+    from opencortex.api.client import AnthropicApiClient
+    from opencortex.config.settings import PermissionSettings
+    from opencortex.engine.query import QueryContext, run_query
+    from opencortex.engine.messages import ConversationMessage
+    from opencortex.engine.stream_events import AssistantTextDelta, ToolExecutionStarted
+    from opencortex.permissions.checker import PermissionChecker
+    from opencortex.permissions.modes import PermissionMode
+    from opencortex.tools.base import ToolRegistry
+    from opencortex.tools.bash_tool import BashTool
+    from opencortex.tools.file_read_tool import FileReadTool
+    from opencortex.tools.glob_tool import GlobTool
+    from opencortex.tools.grep_tool import GrepTool
 
     # Skills
     skill_reg = SkillRegistry()
@@ -712,21 +712,21 @@ async def test_combined_hooks_skills_agent():
 @pytest.mark.skipif(_SKIP_REAL_API, reason="Needs real API + AutoAgent")
 async def test_full_swarm_autoagent():
     """Spawn 2 in-process teammates working on AutoAgent with team management."""
-    from openharness.swarm.in_process import start_in_process_teammate, TeammateAbortController
-    from openharness.swarm.types import TeammateSpawnConfig
-    from openharness.engine.query import QueryContext
-    from openharness.api.client import AnthropicApiClient
-    from openharness.config.settings import PermissionSettings
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.tools.file_read_tool import FileReadTool
-    from openharness.tools.glob_tool import GlobTool
-    from openharness.tools.grep_tool import GrepTool
-    from openharness.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
-    import openharness.swarm.mailbox as mb
-    import openharness.swarm.team_lifecycle as tl
+    from opencortex.swarm.in_process import start_in_process_teammate, TeammateAbortController
+    from opencortex.swarm.types import TeammateSpawnConfig
+    from opencortex.engine.query import QueryContext
+    from opencortex.api.client import AnthropicApiClient
+    from opencortex.config.settings import PermissionSettings
+    from opencortex.permissions.checker import PermissionChecker
+    from opencortex.permissions.modes import PermissionMode
+    from opencortex.tools.base import ToolRegistry
+    from opencortex.tools.bash_tool import BashTool
+    from opencortex.tools.file_read_tool import FileReadTool
+    from opencortex.tools.glob_tool import GlobTool
+    from opencortex.tools.grep_tool import GrepTool
+    from opencortex.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
+    import opencortex.swarm.mailbox as mb
+    import opencortex.swarm.team_lifecycle as tl
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
