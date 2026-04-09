@@ -286,11 +286,12 @@ class TestA2AAPI:
         r = httpx.post(f"{self.BASE}/tasks", json={
             "prompt": "integration test",
             "model": "glm-4-flash"
-        })
+        }, timeout=120)
         assert r.status_code == 200
         data = r.json()
         assert "task_id" in data
-        assert data["status"] == "submitted"
+        # After Phase 2, tasks execute synchronously
+        assert data["status"] in ("submitted", "completed")
 
     def test_get_task_endpoint(self):
         import httpx
@@ -310,7 +311,8 @@ class TestA2AAPI:
 
     def test_cancel_task_endpoint(self):
         import httpx
-        r = httpx.post(f"{self.BASE}/tasks", json={"prompt": "cancel me"})
+        # Use stream=True to avoid synchronous execution
+        r = httpx.post(f"{self.BASE}/tasks", json={"prompt": "cancel me", "stream": True})
         tid = r.json()["task_id"]
         r = httpx.delete(f"{self.BASE}/tasks/{tid}")
         assert r.status_code == 200
