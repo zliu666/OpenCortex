@@ -100,7 +100,7 @@ class ContextLayer:
     def _generate_id(self, content_type: str, content: str) -> str:
         """Generate unique ID."""
         hash_val = hashlib.md5(content.encode()).hexdigest()[:12]
-        timestamp = int(datetime.timestamp(datetime.utcnow()))
+        timestamp = int(datetime.timestamp(datetime.now(UTC)))
         return f"{content_type}_{timestamp}_{hash_val}"
 
 
@@ -135,4 +135,4 @@ def summarize_tool_output(tool_name: str, command: str, output: str, max_lines: 
 
 
 # Import datetime
-from datetime import datetime
+from datetime import datetime, UTC

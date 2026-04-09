@@ -1,7 +1,7 @@
 """A2A Task Manager - Manages task lifecycle and state."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from enum import Enum
 from typing import Optional, Dict, List
 import uuid
@@ -86,8 +86,8 @@ class TaskManager:
         """Create a new task."""
         task = Task(
             task_id=str(uuid.uuid4()),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             status=TaskStatus.SUBMITTED,
             prompt=prompt,
             model=model,
@@ -135,7 +135,7 @@ class TaskManager:
         if pending_approval_data is not None:
             task.pending_approval_data = pending_approval_data
 
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(UTC)
         return task
 
     def cancel_task(self, task_id: str) -> bool:
@@ -147,7 +147,7 @@ class TaskManager:
             return False
 
         task.status = TaskStatus.CANCELLED
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(UTC)
         return True
 
     def list_tasks(
