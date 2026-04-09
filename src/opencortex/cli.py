@@ -1392,8 +1392,8 @@ def main(
         )
         return
 
-    asyncio.run(
-        run_repl(
+    def _make_coro():
+        return run_repl(
             prompt=None,
             cwd=cwd,
             model=model,
@@ -1405,4 +1405,12 @@ def main(
             api_format=api_format,
             permission_mode=permission_mode,
         )
-    )
+    try:
+        asyncio.run(_make_coro())
+    except RuntimeError as _e:
+        if "event loop" in str(_e).lower():
+            import nest_asyncio
+            nest_asyncio.apply()
+            asyncio.get_event_loop().run_until_complete(_make_coro())
+        else:
+            raise

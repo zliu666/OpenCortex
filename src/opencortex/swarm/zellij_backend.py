@@ -55,8 +55,33 @@ def is_inside_zellij() -> bool:
     """Return True if the current process is inside a Zellij session.
 
     Zellij sets ``$ZELLIJ`` (the socket path) for every session.
+    Also checks parent process tree as fallback for subprocess environments.
     """
-    return bool(os.environ.get("ZELLIJ"))
+    if os.environ.get("ZELLIJ"):
+        return True
+    # Fallback: check if parent process is zellij
+    try:
+        import subprocess as _sp
+        ppid = os.getppid()
+        r = _sp.run(["ps", "-p", str(ppid), "-o", "comm="], capture_output=True, text=True, timeout=2)
+        if "zellij" in r.stdout.strip().lower():
+            return True
+        # Walk up the process tree
+        r2 = _sp.run(["ps", "-eo", "pid,ppid,comm"], capture_output=True, text=True, timeout=2)
+        pid = ppid
+        for _ in range(5):  # max 5 levels
+            for line in r2.stdout.strip().split("\n"):
+                parts = line.split()
+                if len(parts) >= 3 and parts[0] == str(pid):
+                    if "zellij" in parts[-1].lower():
+                        return True
+                    pid = parts[1]  # ppid
+                    break
+            else:
+                break
+    except Exception:
+        pass
+    return False
 
 
 def is_zellij_available() -> bool:
@@ -483,3 +508,9 @@ def get_zellij_backend() -> ZellijPaneBackend:
     if _zellij_backend is None:
         _zellij_backend = ZellijPaneBackend()
     return _zellij_backend
+
+# Debug: log Zellij detection on module load
+import os as _os
+_debug_zellij = _os.environ.get("ZELLIJ", "(not set)")
+import logging as _logging
+_logging.getLogger(__name__).info("zellij_backend loaded: ZELLIJ=%s, is_inside=%s", _debug_zellij, is_inside_zellij())

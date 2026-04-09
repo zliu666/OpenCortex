@@ -128,9 +128,9 @@ class ReactBackendHost:
                 continue
             try:
                 request = FrontendRequest.model_validate_json(payload)
-            except Exception as exc:  # pragma: no cover - defensive protocol handling
-                await self._emit(BackendEvent(type="error", message=f"Invalid request: {exc}"))
-                continue
+            except Exception:
+                # Non-JSON input: treat as user prompt (for subprocess teammates)
+                request = FrontendRequest(type="submit_line", line=payload)
             await self._request_queue.put(request)
 
     async def _process_line(self, line: str) -> bool:
