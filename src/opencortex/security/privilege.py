@@ -66,11 +66,12 @@ class ToolPrivilegeAssignor:
                 response_text += event.text
 
         response_lower = response_text.lower()
-        # Check A first (Query), but if B also present, that's ambiguous
-        if "a" in response_lower and "b" not in response_lower:
-            result = ToolPrivilege.QUERY
-        elif "b" in response_lower:
+        # Check "b" (Command) first for conservative classification.
+        # When both "a" and "b" are present, default to the stricter Command.
+        if "b" in response_lower:
             result = ToolPrivilege.COMMAND
+        elif "a" in response_lower:
+            result = ToolPrivilege.QUERY
         else:
             log.warning("privilege assignor returned ambiguous result for %s: %s, defaulting to Command",
                         tool_name, response_text.strip())
