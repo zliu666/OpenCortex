@@ -176,7 +176,12 @@ async def run_query(
 
         messages.append(ConversationMessage(role="user", content=tool_results))
 
-    if context.max_turns is not None:
+    # --- Judge Agent: auto-extend turns when limit reached -----------
+    if context.max_turns is not None and turn_count >= context.max_turns:
+        should_continue = await _judge_should_extend(context, messages, turn_count)
+        if should_continue:
+            turn_count = 0  # reset counter, continue in the same loop
+            continue
         raise MaxTurnsExceeded(context.max_turns)
     raise RuntimeError("Query loop exited without a max_turns limit or final response")
 
@@ -357,3 +362,90 @@ def _extract_permission_command(
         return value
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# Judge Agent: decides whether to extend turns when limit is reached
+# ---------------------------------------------------------------------------
+
+_JUDGE_SYSTEM_PROMPT = """\
+You are a Judge Agent. Your ONLY job is to review the task progress and decide:
+
+1. Is the agent making meaningful progress toward the task goal?
+2. Or is it stuck in a loop, repeating failed attempts, or doing nothing useful?
+
+Recent tool calls and assistant messages are provided below.
+
+Respond with ONLY one word:
+- "continue" — if the agent is making progress and should get more turns
+- "stop" — if the agent is stuck, looping, or the task appears complete
+"""
+
+async def _judge_should_extend(
+    context: QueryContext,
+    messages: list[ConversationMessage],
+    turn_count: int,
+) -> bool:
+    """Ask the judge model whether the agent should get more turns.
+
+    Uses the strongest available model (GLM 5.1) for high-quality judgment.
+    Returns True to grant another batch of turns, False to stop.
+    """
+    import json
+
+    log.info("[JudgeAgent] Turn limit reached (%d). Calling judge to evaluate progress...", turn_count)
+
+    # Extract recent assistant messages (last 10) for context
+    recent = messages[-10:] if len(messages) > 10 else messages
+    summary_parts = []
+    for msg in recent:
+        role = msg.role
+        if isinstance(msg.content, str):
+            text = msg.content[:300]
+        elif isinstance(msg.content, list):
+            # Tool results or tool uses
+            items = []
+            for item in msg.content:
+                if isinstance(item, dict):
+                    if item.get("type") == "tool_result":
+                        items.append(f"tool_result: {str(item.get('content', ''))[:100]}")
+                    elif item.get("type") == "tool_use":
+                        items.append(f"tool_call: {item.get('name', '?')}")
+                elif isinstance(item, ToolResultBlock):
+                    items.append(f"tool_result: {str(item.content)[:100]}")
+            text = "; ".join(items)[:300]
+        else:
+            text = str(msg.content)[:300]
+        summary_parts.append(f"[{role}] {text}")
+
+    judge_prompt = "Recent activity:\n" + "\n".join(summary_parts)
+
+    try:
+        # Use GLM 5.1 (glm-5-turbo) as the judge model
+        judge_api = context.api_client
+        response = await judge_api.stream_message(
+            ApiMessageRequest(
+                model="glm-5-turbo",  # strongest model for judgment
+                messages=[{"role": "user", "content": judge_prompt}],
+                system_prompt=_JUDGE_SYSTEM_PROMPT,
+                max_tokens=10,
+            )
+        )
+
+        final_text = ""
+        async for event in response:
+            if isinstance(event, ApiMessageCompleteEvent):
+                final_text = event.message.content or ""
+                if isinstance(final_text, list):
+                    final_text = final_text[0].get("text", "") if final_text else ""
+                break
+
+        decision = final_text.strip().lower()
+        result = "continue" in decision
+
+        log.info("[JudgeAgent] Decision: %s (raw: %s)", "CONTINUE" if result else "STOP", repr(final_text))
+        return result
+
+    except Exception as exc:
+        log.warning("[JudgeAgent] Error calling judge, defaulting to continue: %s", exc)
+        return True  # default: allow continuation on error
