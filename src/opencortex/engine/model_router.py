@@ -5,10 +5,22 @@ task description, or explicit configuration.
 
 Routing strategy (evaluated in order):
 1. Explicit model override (from AgentDefinition.model or AgentToolInput.model)
-2. Agent type in execution_agent_types list → execution model
-3. Message complexity heuristic → complex tasks stay on primary
-4. Task description heuristic → execution model for simple tasks
-5. Default → primary model
+2. Budget exceeded → cheapest available model
+3. Task-type routing rules (code/research/testing/review)
+4. Agent type in execution_agent_types list → execution model
+5. Message complexity heuristic → complex tasks stay on primary
+6. Task description heuristic → execution model for simple tasks
+7. Default → primary model
+
+Budget control:
+- Track per-model token usage
+- Auto-downgrade when budget exceeded
+- Reset daily
+
+Dynamic fallback:
+- Primary model unavailable → execution model
+- Execution model unavailable → primary model
+- Both unavailable → error
 """
 
 from __future__ import annotations
@@ -40,13 +52,46 @@ class ModelRouter:
 
     Routing strategy (evaluated in order):
     1. Explicit model override (from AgentDefinition.model or AgentToolInput.model)
-    2. Agent type in execution_agent_types list → execution model
-    3. Task description heuristic → execution model for simple tasks
-    4. Default → primary model
+    2. Budget exceeded → cheapest available model
+    3. Task-type routing rules (code/research/testing/review)
+    4. Agent type in execution_agent_types list → execution model
+    5. Message complexity heuristic → complex tasks stay on primary
+    6. Task description heuristic → execution model for simple tasks
+    7. Default → primary model
     """
+
+    # Task-type routing rules: task_type → {complexity → model_tier}
+    # model_tier: "primary" or "execution"
+    TASK_ROUTING_RULES: dict[str, dict[str, str]] = {
+        "code_generation": {"simple": "execution", "complex": "primary"},
+        "code_review": {"default": "primary"},
+        "research": {"default": "execution"},
+        "testing": {"default": "execution"},
+        "documentation": {"default": "execution"},
+        "planning": {"default": "primary"},
+        "debugging": {"default": "primary"},
+    }
+
+    # Keywords for task-type detection
+    _TASK_TYPE_KEYWORDS: dict[str, frozenset[str]] = {
+        "code_generation": frozenset({"implement", "write code", "create", "build", "develop", "编码", "实现", "开发", "编写"}),
+        "code_review": frozenset({"review", "audit", "inspect", "审查", "审计", "检查"}),
+        "research": frozenset({"search", "find", "lookup", "investigate", "搜索", "查找", "调研"}),
+        "testing": frozenset({"test", "pytest", "unittest", "测试"}),
+        "documentation": frozenset({"document", "readme", "doc", "文档", "注释"}),
+        "planning": frozenset({"plan", "design", "architect", "规划", "设计", "架构"}),
+        "debugging": frozenset({"debug", "fix", "error", "traceback", "调试", "修复", "排错"}),
+    }
 
     def __init__(self, settings: DualModelSettings) -> None:
         self._settings = settings
+        # Budget tracking: model -> token count
+        self._usage: dict[str, int] = {}
+        # Daily budget per model (tokens). 0 = unlimited
+        self._budgets: dict[str, int] = {
+            "primary": 0,  # unlimited by default
+            "execution": 0,  # unlimited by default
+        }
 
     @property
     def is_enabled(self) -> bool:
@@ -59,6 +104,8 @@ class ModelRouter:
         task_description: str | None = None,
         explicit_model: str | None = None,
         user_message: str | None = None,
+        task_type: str | None = None,
+        complexity: str | None = None,
     ) -> ModelRoute:
         """Determine which model to use.
 
@@ -68,6 +115,8 @@ class ModelRouter:
             explicit_model: An explicit model override (from AgentToolInput.model
                 or AgentDefinition.model).
             user_message: The actual user message for complexity analysis.
+            task_type: Explicit task type (code_generation/research/testing/etc).
+            complexity: Explicit complexity (simple/complex).
 
         Returns:
             ModelRoute with resolved model and provider config.
@@ -78,27 +127,45 @@ class ModelRouter:
         if not s.enabled:
             return ModelRoute(model=s.primary_model, provider_key="primary")
 
-        # Explicit model override — honor it but don't switch provider
-        # unless the override matches the execution model name
+        # 1. Explicit model override
         if explicit_model and explicit_model != "inherit":
             if self._is_execution_model(explicit_model):
                 return self._execution_route()
-            # Unknown explicit model: use primary provider with overridden model name
             return ModelRoute(model=explicit_model, provider_key="primary")
 
-        # Agent type match
+        # 2. Budget check — if primary budget exceeded, downgrade
+        primary_budget = self._budgets.get("primary", 0)
+        if primary_budget > 0:
+            primary_usage = self._usage.get("primary", 0)
+            if primary_usage >= primary_budget:
+                log.info("Primary model budget exceeded (%d/%d), using execution model",
+                         primary_usage, primary_budget)
+                return self._execution_route()
+
+        # 3. Task-type routing
+        detected_type = task_type or self._detect_task_type(
+            task_description or "", user_message or ""
+        )
+        if detected_type and detected_type in self.TASK_ROUTING_RULES:
+            tier = self._resolve_tier(detected_type, complexity)
+            if tier == "execution":
+                return self._execution_route()
+            else:
+                return self._primary_route()
+
+        # 4. Agent type match
         if agent_type and agent_type in s.execution_agent_types:
             return self._execution_route()
 
-        # Message complexity check — complex messages stay on primary
+        # 5. Message complexity check
         if user_message and self.is_complex_message(user_message):
             return self._primary_route()
 
-        # Task description heuristic
+        # 6. Task description heuristic
         if task_description and self._is_simple_task(task_description):
             return self._execution_route()
 
-        # Default: primary model
+        # 7. Default: primary model
         return self._primary_route()
 
     def _primary_route(self) -> ModelRoute:
@@ -192,3 +259,53 @@ class ModelRouter:
     def get_fallback_route(self) -> ModelRoute:
         """Return the primary model route for fallback when execution model fails."""
         return self._primary_route()
+
+    def record_usage(self, model: str, tokens: int) -> None:
+        """Record token usage for budget tracking."""
+        self._usage[model] = self._usage.get(model, 0) + tokens
+
+    def set_budget(self, tier: str, max_tokens: int) -> None:
+        """Set daily token budget for a model tier.
+
+        Args:
+            tier: "primary" or "execution"
+            max_tokens: Maximum tokens per day. 0 = unlimited.
+        """
+        self._budgets[tier] = max_tokens
+
+    def get_usage(self) -> dict[str, int]:
+        """Get current token usage per model."""
+        return dict(self._usage)
+
+    def reset_daily(self) -> None:
+        """Reset daily usage counters."""
+        self._usage.clear()
+
+    def _detect_task_type(self, description: str, message: str) -> str | None:
+        """Detect task type from description and message content."""
+        text = f"{description} {message}".lower()
+        words = {token.strip(".,:;!?()[]{}\"'` ") for token in text.split()}
+
+        best_match: str | None = None
+        best_count = 0
+
+        for task_type, keywords in self._TASK_TYPE_KEYWORDS.items():
+            overlap = words & {kw.lower() for kw in keywords}
+            if len(overlap) > best_count:
+                best_count = len(overlap)
+                best_match = task_type
+
+        return best_match
+
+    def _resolve_tier(self, task_type: str, complexity: str | None) -> str:
+        """Resolve which tier to use for a task type."""
+        rules = self.TASK_ROUTING_RULES.get(task_type, {})
+
+        if complexity and complexity in rules:
+            return rules[complexity]
+
+        if "default" in rules:
+            return rules["default"]
+
+        # Default to primary for unknown
+        return "primary"
