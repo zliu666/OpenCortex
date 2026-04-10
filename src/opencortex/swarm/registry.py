@@ -361,6 +361,8 @@ class BackendRegistry:
             return "in_process"
         elif mode == "tmux":
             return "tmux"
+        elif mode == "zellij":
+            return "zellij"
         else:
             # "auto" — fall through to detection
             return self.detect_backend()
@@ -438,8 +440,10 @@ class BackendRegistry:
         # Tmux backend registration is deferred until implementation exists.
         # If a TmuxBackend is available it can be registered via register_backend().
 
-        # Zellij pane backend — register when inside Zellij
-        if _detect_zellij() and shutil.which("zellij"):
+        # Zellij pane backend — register when zellij is available
+        # Detection of whether we're inside a Zellij session happens at runtime
+        # via _detect_zellij(), not at registration time.
+        if shutil.which("zellij"):
             from opencortex.swarm.zellij_backend import ZellijPaneBackend
             self._backends["zellij"] = ZellijPaneBackend()
             logger.debug("[BackendRegistry] Registered zellij backend")
