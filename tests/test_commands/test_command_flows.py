@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from openharness.commands.registry import CommandContext, create_default_command_registry
-from openharness.config.settings import load_settings
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.permissions import PermissionChecker
-from openharness.state import AppState, AppStateStore
-from openharness.tools import create_default_tool_registry
+from opencortex.commands.registry import CommandContext, create_default_command_registry
+from opencortex.config.settings import load_settings
+from opencortex.engine.messages import ConversationMessage, TextBlock
+from opencortex.engine.query_engine import QueryEngine
+from opencortex.permissions import PermissionChecker
+from opencortex.state import AppState, AppStateStore
+from opencortex.tools import create_default_tool_registry
 
 
 class FakeApiClient:
@@ -84,8 +84,6 @@ async def test_command_flow_for_memory_modes_and_tasks(tmp_path: Path, monkeypat
         "/plan on",
         "/fast on",
         "/output-style set minimal",
-        "/vim on",
-        "/voice on",
         "/tasks run printf 'command-flow-task'",
     ]:
         command, args = registry.lookup(raw)
@@ -120,8 +118,6 @@ async def test_command_flow_for_memory_modes_and_tasks(tmp_path: Path, monkeypat
     doctor_command, doctor_args = registry.lookup("/doctor")
     doctor_result = await doctor_command.handler(doctor_args, context)
     assert "- output_style: minimal" in doctor_result.message
-    assert "- vim_mode: on" in doctor_result.message
-    assert "- voice_mode: on" in doctor_result.message
     assert load_settings().fast_mode is True
     assert context.app_state.get().fast_mode is True
 

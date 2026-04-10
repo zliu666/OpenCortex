@@ -7,27 +7,27 @@ from pathlib import Path
 
 import pytest
 
-from openharness.tools.bash_tool import BashTool, BashToolInput
-from openharness.tools.base import ToolExecutionContext
-from openharness.tools.brief_tool import BriefTool, BriefToolInput
-from openharness.tools.cron_create_tool import CronCreateTool, CronCreateToolInput
-from openharness.tools.cron_delete_tool import CronDeleteTool, CronDeleteToolInput
-from openharness.tools.cron_list_tool import CronListTool, CronListToolInput
-from openharness.tools.config_tool import ConfigTool, ConfigToolInput
-from openharness.tools.enter_worktree_tool import EnterWorktreeTool, EnterWorktreeToolInput
-from openharness.tools.exit_worktree_tool import ExitWorktreeTool, ExitWorktreeToolInput
-from openharness.tools.file_edit_tool import FileEditTool, FileEditToolInput
-from openharness.tools.file_read_tool import FileReadTool, FileReadToolInput
-from openharness.tools.file_write_tool import FileWriteTool, FileWriteToolInput
-from openharness.tools.glob_tool import GlobTool, GlobToolInput
-from openharness.tools.grep_tool import GrepTool, GrepToolInput
-from openharness.tools.lsp_tool import LspTool, LspToolInput
-from openharness.tools.notebook_edit_tool import NotebookEditTool, NotebookEditToolInput
-from openharness.tools.remote_trigger_tool import RemoteTriggerTool, RemoteTriggerToolInput
-from openharness.tools.skill_tool import SkillTool, SkillToolInput
-from openharness.tools.todo_write_tool import TodoWriteTool, TodoWriteToolInput
-from openharness.tools.tool_search_tool import ToolSearchTool, ToolSearchToolInput
-from openharness.tools import create_default_tool_registry
+from opencortex.tools.bash_tool import BashTool, BashToolInput
+from opencortex.tools.base import ToolExecutionContext
+from opencortex.tools.brief_tool import BriefTool, BriefToolInput
+from opencortex.tools.cron_create_tool import CronCreateTool, CronCreateToolInput
+from opencortex.tools.cron_delete_tool import CronDeleteTool, CronDeleteToolInput
+from opencortex.tools.cron_list_tool import CronListTool, CronListToolInput
+from opencortex.tools.config_tool import ConfigTool, ConfigToolInput
+from opencortex.tools.enter_worktree_tool import EnterWorktreeTool, EnterWorktreeToolInput
+from opencortex.tools.exit_worktree_tool import ExitWorktreeTool, ExitWorktreeToolInput
+from opencortex.tools.file_edit_tool import FileEditTool, FileEditToolInput
+from opencortex.tools.file_read_tool import FileReadTool, FileReadToolInput
+from opencortex.tools.file_write_tool import FileWriteTool, FileWriteToolInput
+from opencortex.tools.glob_tool import GlobTool, GlobToolInput
+from opencortex.tools.grep_tool import GrepTool, GrepToolInput
+from opencortex.tools.lsp_tool import LspTool, LspToolInput
+from opencortex.tools.notebook_edit_tool import NotebookEditTool, NotebookEditToolInput
+from opencortex.tools.remote_trigger_tool import RemoteTriggerTool, RemoteTriggerToolInput
+from opencortex.tools.skill_tool import SkillTool, SkillToolInput
+from opencortex.tools.todo_write_tool import TodoWriteTool, TodoWriteToolInput
+from opencortex.tools.tool_search_tool import ToolSearchTool, ToolSearchToolInput
+from opencortex.tools import create_default_tool_registry
 
 
 @pytest.mark.asyncio
@@ -105,7 +105,9 @@ async def test_skill_todo_and_config_tools(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     skills_dir = tmp_path / "config" / "skills"
     skills_dir.mkdir(parents=True)
-    (skills_dir / "pytest.md").write_text("# Pytest\nHelpful pytest notes.\n", encoding="utf-8")
+    pytest_dir = skills_dir / "pytest"
+    pytest_dir.mkdir()
+    (pytest_dir / "SKILL.md").write_text("# Pytest\nHelpful pytest notes.\n", encoding="utf-8")
 
     skill_result = await SkillTool().execute(
         SkillToolInput(name="Pytest"),
@@ -180,7 +182,7 @@ async def test_lsp_tool(tmp_path: Path):
 async def test_worktree_tools(tmp_path: Path):
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
     subprocess.run(
-        ["git", "config", "user.email", "openharness@example.com"],
+        ["git", "config", "user.email", ".opencortex@example.com"],
         cwd=tmp_path,
         check=True,
         capture_output=True,

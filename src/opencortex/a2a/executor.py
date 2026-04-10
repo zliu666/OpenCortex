@@ -49,7 +49,7 @@ class TaskExecutor:
         task_id: str,
         prompt: str,
         model: str = "glm-4-flash",
-        max_turns: int = 8,
+        max_turns: int = 50,
         temperature: float = 0.7,
     ) -> dict:
         """Execute a task synchronously, return Level 1 summary."""
@@ -220,7 +220,7 @@ class TaskExecutor:
         task_id: str,
         prompt: str,
         model: str = "glm-4-flash",
-        max_turns: int = 8,
+        max_turns: int = 50,
     ) -> AsyncIterator[dict]:
         """Execute a task and yield SSE events for streaming."""
         task = self.task_manager.get_task(task_id)

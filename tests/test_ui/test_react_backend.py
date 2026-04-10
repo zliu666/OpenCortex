@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.ui.backend_host import BackendHostConfig, ReactBackendHost
-from openharness.ui.runtime import build_runtime, close_runtime, start_runtime
+from opencortex.api.client import ApiMessageCompleteEvent
+from opencortex.api.usage import UsageSnapshot
+from opencortex.engine.messages import ConversationMessage, TextBlock
+from opencortex.ui.backend_host import BackendHostConfig, ReactBackendHost
+from opencortex.ui.runtime import build_runtime, close_runtime, start_runtime
 
 
 class StaticApiClient:
@@ -52,7 +52,7 @@ async def test_backend_host_processes_command(tmp_path, monkeypatch):
         event.type == "transcript_item"
         and event.item
         and event.item.role == "system"
-        and "OpenHarness" in event.item.text
+        and "OpenCortex" in event.item.text
         for event in events
     )
     assert any(event.type == "state_snapshot" for event in events)

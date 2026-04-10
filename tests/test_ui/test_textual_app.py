@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, TextBlock, ToolUseBlock
-from openharness.ui.textual_app import OpenHarnessTerminalApp
+from opencortex.api.client import ApiMessageCompleteEvent
+from opencortex.api.usage import UsageSnapshot
+from opencortex.engine.messages import ConversationMessage, TextBlock, ToolUseBlock
+from opencortex.ui.textual_app import OpenCortexTerminalApp
 
 
 class StaticApiClient:
@@ -47,14 +47,14 @@ async def test_textual_app_handles_commands(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
 
-    app = OpenHarnessTerminalApp(api_client=StaticApiClient("unused"))
+    app = OpenCortexTerminalApp(api_client=StaticApiClient("unused"))
     async with app.run_test() as pilot:
         composer = app.query_one("#composer")
         composer.value = "/version"
         await pilot.press("enter")
         await pilot.pause()
 
-    assert any("OpenHarness" in line for line in app.transcript_lines)
+    assert any("OpenCortex" in line for line in app.transcript_lines)
 
 
 @pytest.mark.asyncio
@@ -63,7 +63,7 @@ async def test_textual_app_runs_one_model_turn(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
 
-    app = OpenHarnessTerminalApp(api_client=StaticApiClient("hello from textual"))
+    app = OpenCortexTerminalApp(api_client=StaticApiClient("hello from textual"))
     async with app.run_test() as pilot:
         composer = app.query_one("#composer")
         composer.value = "hi"
@@ -80,7 +80,7 @@ async def test_textual_app_handles_ask_user_tool(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
 
-    app = OpenHarnessTerminalApp(
+    app = OpenCortexTerminalApp(
         api_client=ScriptedApiClient(
             [
                 ConversationMessage(

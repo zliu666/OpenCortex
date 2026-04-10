@@ -8,22 +8,22 @@ panes so the user can observe all agents in real-time.
 Architecture
 ------------
 * :func:`is_inside_zellij` / :func:`is_zellij_available` — environment detection.
-* :class:`ZellijPaneBackend` — implements :class:`PaneBackend` via ``zellij cli``.
+* :class:`ZellijPaneBackend` — implements :class:`PaneBackend` via ``zellij action``.
 * Auto-registered in :class:`BackendRegistry` when Zellij is detected.
 
 CLI usage examples (``zellij cli``)::
 
     # Create a new pane (returns no ID, but we track via pane title)
-    zellij cli new-pane -c "tail -f /dev/null" --name "agent-researcher"
+    zellij action new-pane -c "tail -f /dev/null" --name "agent-researcher"
 
     # List panes (parse output for pane IDs / names)
-    zellij cli list-panes
+    zellij action list-panes
 
-    # Write to a pane by sending keys
-    zellij cli write --pane-id <id> "text"
+    # Write to a pane
+    zellij action write --pane-id <id> "text"
 
     # Close / kill a pane
-    zellij cli close-pane --pane-id <id>
+    zellij action close-pane --pane-id <id>
 """
 
 from __future__ import annotations
@@ -55,8 +55,33 @@ def is_inside_zellij() -> bool:
     """Return True if the current process is inside a Zellij session.
 
     Zellij sets ``$ZELLIJ`` (the socket path) for every session.
+    Also checks parent process tree as fallback for subprocess environments.
     """
-    return bool(os.environ.get("ZELLIJ"))
+    if os.environ.get("ZELLIJ"):
+        return True
+    # Fallback: check if parent process is zellij
+    try:
+        import subprocess as _sp
+        ppid = os.getppid()
+        r = _sp.run(["ps", "-p", str(ppid), "-o", "comm="], capture_output=True, text=True, timeout=2)
+        if "zellij" in r.stdout.strip().lower():
+            return True
+        # Walk up the process tree
+        r2 = _sp.run(["ps", "-eo", "pid,ppid,comm"], capture_output=True, text=True, timeout=2)
+        pid = ppid
+        for _ in range(5):  # max 5 levels
+            for line in r2.stdout.strip().split("\n"):
+                parts = line.split()
+                if len(parts) >= 3 and parts[0] == str(pid):
+                    if "zellij" in parts[-1].lower():
+                        return True
+                    pid = parts[1]  # ppid
+                    break
+            else:
+                break
+    except Exception:
+        pass
+    return False
 
 
 def is_zellij_available() -> bool:
@@ -72,21 +97,21 @@ def is_zellij_available() -> bool:
 class ZellijPaneBackend:
     """Pane management via the Zellij CLI.
 
-    Implements the :class:`PaneBackend` protocol. Uses ``zellij cli``
+    Implements the :class:`PaneBackend` protocol. Uses ``zellij action``
     subcommands to create, write to, and close panes for teammate agents.
 
     Because Zellij's ``new-pane`` command does not return a pane ID, we
     identify panes by their unique title (``"oc:<agent_id>"``).  The pane
     is created with a persistent ``tail -f /dev/null`` so it stays alive
     even when there is no active output.  Agent output is forwarded by
-    writing to a temporary file and using ``zellij cli write`` or by
+    writing to a temporary file and using ``zellij action write`` or by
     running a command that cats the output file.
 
     Limitations
     -----------
-    * ``zellij cli`` does not expose a stable pane-ID API as of 0.41.
+    * ``zellij action`` does not expose a stable pane-ID API as of 0.41.
       We work around this by querying ``list-panes`` and matching on titles.
-    * ``write_to_pane`` uses ``zellij cli write-chars`` which simulates
+    * ``write_to_pane`` uses ``zellij action write-chars`` which simulates
       typing — this may be slow for very large outputs.
     """
 
@@ -164,10 +189,11 @@ class ZellijPaneBackend:
         direction = "Down" if is_first else "Right"
 
         zellij_cmd = [
-            "zellij", "cli", "new-pane",
-            "-c", cmd,
-            "--name", pane_title,
-            "-d", direction,
+            "zellij", "action", "new-pane",
+            "--direction", direction,
+            "--cwd", os.path.dirname(log_path),
+            "--",
+            "tail", "-f", log_path,
         ]
 
         try:
@@ -209,7 +235,7 @@ class ZellijPaneBackend:
     ) -> None:
         """Send a command to the given pane.
 
-        Uses ``zellij cli run --pane-id`` or falls back to writing
+        Uses ``zellij action`` or falls back to writing
         chars via ``write-chars``.
         """
         # First, kill the existing tail process, then run the actual command
@@ -274,7 +300,7 @@ class ZellijPaneBackend:
     ) -> bool:
         """Kill / close a Zellij pane.
 
-        Tries ``zellij cli close-pane`` with the pane title. Falls back
+        Tries ``zellij action close-pane`` with the pane title. Falls back
         to sending ``exit`` via write-chars.
         """
         meta = self._panes.get(pane_id)
@@ -286,7 +312,7 @@ class ZellijPaneBackend:
             numeric_id = await self._find_pane_id_by_title(meta["title"])
             if numeric_id:
                 proc = await asyncio.create_subprocess_exec(
-                    "zellij", "cli", "close-pane", "--pane-id", numeric_id,
+                    "zellij", "action", "close-pane", "--pane-id", numeric_id,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -415,7 +441,7 @@ class ZellijPaneBackend:
     # ------------------------------------------------------------------
 
     async def _write_chars(self, pane_id: PaneId, text: str) -> None:
-        """Write characters to a pane via ``zellij cli write-chars``.
+        """Write characters to a pane via ``zellij action write-chars``.
 
         If a numeric pane ID cannot be determined, falls back to writing
         to the pane identified by title.
@@ -425,7 +451,7 @@ class ZellijPaneBackend:
 
         numeric_id = await self._find_pane_id_by_title(title)
 
-        cmd = ["zellij", "cli", "write-chars"]
+        cmd = ["zellij", "action", "write-chars"]
         if numeric_id:
             cmd.extend(["--pane-id", numeric_id])
         cmd.append(text)
@@ -441,13 +467,13 @@ class ZellijPaneBackend:
             logger.debug("[ZellijBackend] write-chars failed: %s", exc)
 
     async def _find_pane_id_by_title(self, title: str) -> str | None:
-        """Parse ``zellij cli list-panes`` to find the numeric ID for *title*.
+        """Parse ``zellij action list-panes`` to find the numeric ID for *title*.
 
         Returns the pane ID as a string, or None if not found.
         """
         try:
             proc = await asyncio.create_subprocess_exec(
-                "zellij", "cli", "list-panes",
+                "zellij", "action", "list-panes",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -483,3 +509,9 @@ def get_zellij_backend() -> ZellijPaneBackend:
     if _zellij_backend is None:
         _zellij_backend = ZellijPaneBackend()
     return _zellij_backend
+
+# Debug: log Zellij detection on module load
+import os as _os
+_debug_zellij = _os.environ.get("ZELLIJ", "(not set)")
+import logging as _logging
+_logging.getLogger(__name__).info("zellij_backend loaded: ZELLIJ=%s, is_inside=%s", _debug_zellij, is_inside_zellij())

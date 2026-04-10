@@ -8,18 +8,18 @@ from pathlib import Path
 
 import pytest
 
-from openharness.config.settings import Settings, load_settings
-from openharness.mcp.client import McpClientManager
-from openharness.mcp.config import load_mcp_server_configs
-from openharness.plugins import load_plugins
-from openharness.plugins.installer import install_plugin_from_path, uninstall_plugin
-from openharness.tools import create_default_tool_registry
-from openharness.tools.base import ToolExecutionContext
+from opencortex.config.settings import Settings, load_settings
+from opencortex.mcp.client import McpClientManager
+from opencortex.mcp.config import load_mcp_server_configs
+from opencortex.plugins import load_plugins
+from opencortex.plugins.installer import install_plugin_from_path, uninstall_plugin
+from opencortex.tools import create_default_tool_registry
+from opencortex.tools.base import ToolExecutionContext
 
 
 def _write_plugin(source_root: Path, server_script: Path) -> Path:
     plugin_dir = source_root / "fixture-plugin"
-    (plugin_dir / "skills").mkdir(parents=True)
+    (plugin_dir / "skills" / "fixture").mkdir(parents=True)
     (plugin_dir / "plugin.json").write_text(
         json.dumps(
             {
@@ -30,7 +30,7 @@ def _write_plugin(source_root: Path, server_script: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (plugin_dir / "skills" / "fixture.md").write_text(
+    (plugin_dir / "skills" / "fixture" / "SKILL.md").write_text(
         "# FixtureSkill\nFixture skill content for plugin flow.\n",
         encoding="utf-8",
     )

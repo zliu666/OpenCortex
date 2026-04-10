@@ -1,9 +1,9 @@
-"""Tests for openharness.prompts.system_prompt."""
+"""Tests for.opencortex.prompts.system_prompt."""
 
 from __future__ import annotations
 
-from openharness.prompts.environment import EnvironmentInfo
-from openharness.prompts.system_prompt import build_system_prompt
+from opencortex.prompts.environment import EnvironmentInfo
+from opencortex.prompts.system_prompt import build_system_prompt
 
 
 def _make_env(**overrides) -> EnvironmentInfo:
@@ -61,4 +61,4 @@ def test_build_system_prompt_custom_prompt():
 def test_build_system_prompt_default_includes_base():
     env = _make_env()
     prompt = build_system_prompt(env=env)
-    assert "OpenHarness" in prompt
+    assert "OpenCortex" in prompt

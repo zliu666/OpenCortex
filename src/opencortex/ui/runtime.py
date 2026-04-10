@@ -102,7 +102,7 @@ async def build_runtime(
     ask_user_prompt: AskUserPrompt | None = None,
     restore_messages: list[dict] | None = None,
     cwd: str | None = None,
-    max_turns: int | None = None,
+    max_turns: int | None = 50,
     enforce_max_turns: bool = False,
 ) -> RuntimeBundle:
     """Build the shared runtime for an OpenCortex session."""

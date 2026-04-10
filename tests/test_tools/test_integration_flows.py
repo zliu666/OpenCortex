@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from openharness.tools import create_default_tool_registry
-from openharness.tools.base import ToolExecutionContext
+from opencortex.tools import create_default_tool_registry
+from opencortex.tools.base import ToolExecutionContext
 
 
 @pytest.mark.asyncio
@@ -102,7 +102,8 @@ async def test_skill_and_config_flow_across_registry(tmp_path: Path, monkeypatch
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     skills_dir = tmp_path / "config" / "skills"
     skills_dir.mkdir(parents=True)
-    (skills_dir / "pytest.md").write_text(
+    (skills_dir / "pytest").mkdir()
+    (skills_dir / "pytest" / "SKILL.md").write_text(
         "# Pytest\nPytest fixtures help reuse setup.\n",
         encoding="utf-8",
     )

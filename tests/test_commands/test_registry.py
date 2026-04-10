@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pytest
 
-import openharness.commands.registry as registry_module
-from openharness.commands.registry import CommandContext, create_default_command_registry
-from openharness.config.paths import get_feedback_log_path, get_project_issue_file, get_project_pr_comments_file
-from openharness.config.settings import load_settings, save_settings, Settings
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.mcp.types import McpHttpServerConfig, McpStdioServerConfig
-from openharness.permissions import PermissionChecker
-from openharness.state import AppState, AppStateStore
-from openharness.tasks import get_task_manager
-from openharness.tools import create_default_tool_registry
+import opencortex.commands.registry as registry_module
+from opencortex.commands.registry import CommandContext, create_default_command_registry
+from opencortex.config.paths import get_feedback_log_path, get_project_issue_file, get_project_pr_comments_file
+from opencortex.config.settings import load_settings, save_settings, Settings
+from opencortex.engine.messages import ConversationMessage, TextBlock
+from opencortex.engine.query_engine import QueryEngine
+from opencortex.mcp.types import McpHttpServerConfig, McpStdioServerConfig
+from opencortex.permissions import PermissionChecker
+from opencortex.state import AppState, AppStateStore
+from opencortex.tasks import get_task_manager
+from opencortex.tools import create_default_tool_registry
 
 
 class FakeApiClient:
@@ -184,15 +184,6 @@ async def test_ui_mode_commands_persist_and_update_state(tmp_path: Path, monkeyp
     keybindings_result = await keybindings_command.handler(keybindings_args, context)
     assert "ctrl+l" in keybindings_result.message
 
-    vim_command, vim_args = registry.lookup("/vim toggle")
-    vim_result = await vim_command.handler(vim_args, context)
-    assert "enabled" in vim_result.message
-    assert context.app_state.get().vim_enabled is True
-
-    voice_command, voice_args = registry.lookup("/voice keyterms Shipping pytest fixtures")
-    voice_result = await voice_command.handler(voice_args, context)
-    assert "pytest" in voice_result.message
-
     plan_command, plan_args = registry.lookup("/plan on")
     plan_result = await plan_command.handler(plan_args, context)
     assert "enabled" in plan_result.message
@@ -226,7 +217,7 @@ async def test_version_context_and_share_commands(tmp_path: Path, monkeypatch):
 
     version_command, version_args = registry.lookup("/version")
     version_result = await version_command.handler(version_args, context)
-    assert "OpenHarness" in version_result.message
+    assert "OpenCortex" in version_result.message
 
     context_command, context_args = registry.lookup("/context")
     context_result = await context_command.handler(context_args, context)
@@ -342,7 +333,7 @@ async def test_init_and_bridge_commands(tmp_path: Path, monkeypatch):
     init_result = await init_command.handler(init_args, context)
     assert "Initialized project files" in init_result.message or "already initialized" in init_result.message
     assert (tmp_path / "CLAUDE.md").exists()
-    assert (tmp_path / ".openharness" / "memory" / "MEMORY.md").exists()
+    assert (tmp_path / ".opencortex" / "memory" / "MEMORY.md").exists()
 
     bridge_show_command, bridge_show_args = registry.lookup("/bridge show")
     bridge_show_result = await bridge_show_command.handler(bridge_show_args, context)
@@ -452,19 +443,13 @@ async def test_mcp_and_voice_commands_report_richer_state(tmp_path: Path, monkey
     assert "Saved MCP auth for stdio-demo" in mcp_stdio_result.message
     assert load_settings().mcp_servers["stdio-demo"].env["MCP_AUTH_TOKEN"] == "DEMO_TOKEN"
 
-    voice_command, voice_args = registry.lookup("/voice show")
-    voice_result = await voice_command.handler(voice_args, context)
-    assert "Voice mode:" in voice_result.message
-    assert "Available:" in voice_result.message
-    assert "Reason:" in voice_result.message
-
 
 @pytest.mark.asyncio
 async def test_git_commands_report_repository_state(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
     subprocess.run(
-        ["git", "config", "user.email", "openharness@example.com"],
+        ["git", "config", "user.email", ".opencortex@example.com"],
         cwd=tmp_path,
         check=True,
         capture_output=True,

@@ -7,22 +7,22 @@ from pathlib import Path
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent, ApiTextDeltaEvent
-from openharness.api.usage import UsageSnapshot
-from openharness.config.settings import PermissionSettings
-from openharness.engine.messages import ConversationMessage, TextBlock, ToolUseBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.engine.stream_events import (
+from opencortex.api.client import ApiMessageCompleteEvent, ApiTextDeltaEvent
+from opencortex.api.usage import UsageSnapshot
+from opencortex.config.settings import PermissionSettings
+from opencortex.engine.messages import ConversationMessage, TextBlock, ToolUseBlock
+from opencortex.engine.query_engine import QueryEngine
+from opencortex.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from openharness.permissions import PermissionChecker
-from openharness.tools import create_default_tool_registry
-from openharness.hooks import HookExecutionContext, HookExecutor, HookEvent
-from openharness.hooks.loader import HookRegistry
-from openharness.hooks.schemas import PromptHookDefinition
+from opencortex.permissions import PermissionChecker
+from opencortex.tools import create_default_tool_registry
+from opencortex.hooks import HookExecutionContext, HookExecutor, HookEvent
+from opencortex.hooks.loader import HookRegistry
+from opencortex.hooks.schemas import PromptHookDefinition
 
 
 @dataclass

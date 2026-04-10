@@ -27,7 +27,30 @@ def _detect_zellij() -> bool:
     if os.environ.get("ZELLIJ"):
         logger.debug("[BackendRegistry] _detect_zellij: ZELLIJ=%s", os.environ["ZELLIJ"])
         return True
-    logger.debug("[BackendRegistry] _detect_zellij: $ZELLIJ not set")
+    # Fallback: check if parent process is zellij (backend subprocess may lose env)
+    try:
+        import subprocess
+        ppid = os.getppid()
+        result = subprocess.run(
+            ["ps", "-p", str(ppid), "-o", "comm="],
+            capture_output=True, text=True, timeout=2,
+        )
+        if "zellij" in result.stdout.strip().lower():
+            logger.debug("[BackendRegistry] _detect_zellij: parent process is zellij (ppid=%s)", ppid)
+            return True
+        # Also check full process tree
+        result2 = subprocess.run(
+            ["ps", "-eo", "pid,ppid,comm"],
+            capture_output=True, text=True, timeout=2,
+        )
+        for line in result2.stdout.strip().split("\n"):
+            parts = line.split()
+            if len(parts) >= 3 and parts[0] == str(ppid) and "zellij" in parts[-1].lower():
+                logger.debug("[BackendRegistry] _detect_zellij: parent is zellij via ps tree")
+                return True
+    except Exception:
+        pass
+    logger.debug("[BackendRegistry] _detect_zellij: not inside zellij")
     return False
 
 
@@ -338,6 +361,8 @@ class BackendRegistry:
             return "in_process"
         elif mode == "tmux":
             return "tmux"
+        elif mode == "zellij":
+            return "zellij"
         else:
             # "auto" — fall through to detection
             return self.detect_backend()
@@ -415,8 +440,10 @@ class BackendRegistry:
         # Tmux backend registration is deferred until implementation exists.
         # If a TmuxBackend is available it can be registered via register_backend().
 
-        # Zellij pane backend — register when inside Zellij
-        if os.environ.get("ZELLIJ") and shutil.which("zellij"):
+        # Zellij pane backend — register when zellij is available
+        # Detection of whether we're inside a Zellij session happens at runtime
+        # via _detect_zellij(), not at registration time.
+        if shutil.which("zellij"):
             from opencortex.swarm.zellij_backend import ZellijPaneBackend
             self._backends["zellij"] = ZellijPaneBackend()
             logger.debug("[BackendRegistry] Registered zellij backend")

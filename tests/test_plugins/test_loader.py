@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from openharness.config.settings import Settings
-from openharness.hooks.loader import load_hook_registry
-from openharness.plugins import load_plugins
-from openharness.skills import load_skill_registry
+from opencortex.config.settings import Settings
+from opencortex.hooks.loader import load_hook_registry
+from opencortex.plugins import load_plugins
+from opencortex.skills import load_skill_registry
 
 
 def _write_plugin(root: Path) -> None:
     plugin_dir = root / "example-plugin"
-    (plugin_dir / "skills").mkdir(parents=True)
+    (plugin_dir / "skills" / "deploy").mkdir(parents=True)
     (plugin_dir / "plugin.json").write_text(
         json.dumps(
             {
@@ -24,7 +24,7 @@ def _write_plugin(root: Path) -> None:
         ),
         encoding="utf-8",
     )
-    (plugin_dir / "skills" / "deploy.md").write_text(
+    (plugin_dir / "skills" / "deploy" / "SKILL.md").write_text(
         "# Deploy\nDeploy with care\n",
         encoding="utf-8",
     )
@@ -53,7 +53,7 @@ def _write_plugin(root: Path) -> None:
 def test_load_plugins_from_project_dir(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     project = tmp_path / "repo"
-    plugins_root = project / ".openharness" / "plugins"
+    plugins_root = project / ".opencortex" / "plugins"
     plugins_root.mkdir(parents=True)
     _write_plugin(plugins_root)
 
@@ -70,7 +70,7 @@ def test_load_plugins_from_project_dir(tmp_path: Path, monkeypatch):
 def test_plugin_skills_and_hooks_are_merged(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
     project = tmp_path / "repo"
-    plugins_root = project / ".openharness" / "plugins"
+    plugins_root = project / ".opencortex" / "plugins"
     plugins_root.mkdir(parents=True)
     _write_plugin(plugins_root)
 
