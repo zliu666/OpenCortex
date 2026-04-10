@@ -16,7 +16,7 @@ def test_build_backend_command_includes_flags():
         system_prompt="system",
         api_key="secret",
     )
-    assert command[:3] == [command[0], "-m", .opencortex"]
+    assert command[:3] == [command[0], "-m", "opencortex"]
     assert "--backend-only" in command
     assert "--cwd" in command
     assert "--model" in command
@@ -33,7 +33,7 @@ async def test_run_repl_uses_react_launcher_by_default(monkeypatch):
         seen.update(kwargs)
         return 0
 
-    monkeypatch.setattr(.opencortex.ui.app.launch_react_tui", _launch)
+    monkeypatch.setattr("opencortex.ui.app.launch_react_tui", _launch)
     await run_repl(prompt="hi", cwd="/tmp/demo", model="kimi-k2.5")
 
     assert seen["prompt"] == "hi"

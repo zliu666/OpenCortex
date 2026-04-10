@@ -61,4 +61,4 @@ def test_build_system_prompt_custom_prompt():
 def test_build_system_prompt_default_includes_base():
     env = _make_env()
     prompt = build_system_prompt(env=env)
-    assert "OpenHarness" in prompt
+    assert "OpenCortex" in prompt

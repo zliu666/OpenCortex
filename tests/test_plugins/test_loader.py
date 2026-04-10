@@ -13,7 +13,7 @@ from opencortex.skills import load_skill_registry
 
 def _write_plugin(root: Path) -> None:
     plugin_dir = root / "example-plugin"
-    (plugin_dir / "skills").mkdir(parents=True)
+    (plugin_dir / "skills" / "deploy").mkdir(parents=True)
     (plugin_dir / "plugin.json").write_text(
         json.dumps(
             {
@@ -24,7 +24,7 @@ def _write_plugin(root: Path) -> None:
         ),
         encoding="utf-8",
     )
-    (plugin_dir / "skills" / "deploy.md").write_text(
+    (plugin_dir / "skills" / "deploy" / "SKILL.md").write_text(
         "# Deploy\nDeploy with care\n",
         encoding="utf-8",
     )

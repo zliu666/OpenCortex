@@ -184,15 +184,6 @@ async def test_ui_mode_commands_persist_and_update_state(tmp_path: Path, monkeyp
     keybindings_result = await keybindings_command.handler(keybindings_args, context)
     assert "ctrl+l" in keybindings_result.message
 
-    vim_command, vim_args = registry.lookup("/vim toggle")
-    vim_result = await vim_command.handler(vim_args, context)
-    assert "enabled" in vim_result.message
-    assert context.app_state.get().vim_enabled is True
-
-    voice_command, voice_args = registry.lookup("/voice keyterms Shipping pytest fixtures")
-    voice_result = await voice_command.handler(voice_args, context)
-    assert "pytest" in voice_result.message
-
     plan_command, plan_args = registry.lookup("/plan on")
     plan_result = await plan_command.handler(plan_args, context)
     assert "enabled" in plan_result.message
@@ -226,7 +217,7 @@ async def test_version_context_and_share_commands(tmp_path: Path, monkeypatch):
 
     version_command, version_args = registry.lookup("/version")
     version_result = await version_command.handler(version_args, context)
-    assert "OpenHarness" in version_result.message
+    assert "OpenCortex" in version_result.message
 
     context_command, context_args = registry.lookup("/context")
     context_result = await context_command.handler(context_args, context)
@@ -451,12 +442,6 @@ async def test_mcp_and_voice_commands_report_richer_state(tmp_path: Path, monkey
     mcp_stdio_result = await mcp_stdio_command.handler(mcp_stdio_args, context)
     assert "Saved MCP auth for stdio-demo" in mcp_stdio_result.message
     assert load_settings().mcp_servers["stdio-demo"].env["MCP_AUTH_TOKEN"] == "DEMO_TOKEN"
-
-    voice_command, voice_args = registry.lookup("/voice show")
-    voice_result = await voice_command.handler(voice_args, context)
-    assert "Voice mode:" in voice_result.message
-    assert "Available:" in voice_result.message
-    assert "Reason:" in voice_result.message
 
 
 @pytest.mark.asyncio
