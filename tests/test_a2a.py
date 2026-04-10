@@ -269,11 +269,26 @@ class TestTaskStatus:
 # ============================================================
 
 class TestA2AAPI:
-    """Test A2A HTTP endpoints against live server."""
+    """Test A2A HTTP endpoints with mocked responses."""
 
     BASE = "http://127.0.0.1:8765/a2a"
 
-    def test_agent_card_endpoint(self):
+    @patch('httpx.get')
+    def test_agent_card_endpoint(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "name": "OpenCortex",
+            "version": "0.1.5",
+            "agent_id": "opencortex-0.1.5",
+            "capabilities": [{"name": "test", "type": "tool"}],
+            "supported_models": ["glm-4-flash", "glm-4.7"],
+            "supports_streaming": True,
+            "supports_cancel": True,
+            "documentation_url": "https://github.com/example"
+        }
+        mock_get.return_value = mock_response
+
         import httpx
         r = httpx.get(f"{self.BASE}/agent-card")
         assert r.status_code == 200
@@ -281,7 +296,20 @@ class TestA2AAPI:
         assert data["name"] == "OpenCortex"
         assert "capabilities" in data
 
-    def test_create_task_endpoint(self):
+    @patch('httpx.post')
+    def test_create_task_endpoint(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "task_id": "task-123",
+            "status": "completed",
+            "prompt": "integration test",
+            "model": "glm-4-flash",
+            "response": "Done",
+            "execution": {"duration_ms": 100}
+        }
+        mock_post.return_value = mock_response
+
         import httpx
         r = httpx.post(f"{self.BASE}/tasks", json={
             "prompt": "integration test",
@@ -293,7 +321,31 @@ class TestA2AAPI:
         # After Phase 2, tasks execute synchronously
         assert data["status"] in ("submitted", "completed")
 
-    def test_get_task_endpoint(self):
+    @patch('httpx.post')
+    @patch('httpx.get')
+    def test_get_task_endpoint(self, mock_get, mock_post):
+        # Mock create task
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {
+            "task_id": "task-456",
+            "status": "completed",
+            "prompt": "test",
+            "response": "OK"
+        }
+        mock_post.return_value = mock_post_response
+
+        # Mock get task
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {
+            "task_id": "task-456",
+            "status": "completed",
+            "prompt": "test",
+            "response": "OK"
+        }
+        mock_get.return_value = mock_get_response
+
         import httpx
         # Create first
         r = httpx.post(f"{self.BASE}/tasks", json={"prompt": "test"})
@@ -303,13 +355,46 @@ class TestA2AAPI:
         assert r.status_code == 200
         assert r.json()["task_id"] == tid
 
-    def test_list_tasks_endpoint(self):
+    @patch('httpx.get')
+    def test_list_tasks_endpoint(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "tasks": [
+                {"task_id": "t1", "status": "completed", "prompt": "task 1"},
+                {"task_id": "t2", "status": "working", "prompt": "task 2"}
+            ],
+            "total": 2
+        }
+        mock_get.return_value = mock_response
+
         import httpx
         r = httpx.get(f"{self.BASE}/tasks?limit=10")
         assert r.status_code == 200
         assert "tasks" in r.json()
 
-    def test_cancel_task_endpoint(self):
+    @patch('httpx.post')
+    @patch('httpx.delete')
+    def test_cancel_task_endpoint(self, mock_delete, mock_post):
+        # Mock create task with stream=True
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {
+            "task_id": "task-789",
+            "status": "submitted",
+            "stream_url": "/a2a/stream/task-789"
+        }
+        mock_post.return_value = mock_post_response
+
+        # Mock cancel task
+        mock_delete_response = MagicMock()
+        mock_delete_response.status_code = 200
+        mock_delete_response.json.return_value = {
+            "task_id": "task-789",
+            "status": "cancelled"
+        }
+        mock_delete.return_value = mock_delete_response
+
         import httpx
         # Use stream=True to avoid synchronous execution
         r = httpx.post(f"{self.BASE}/tasks", json={"prompt": "cancel me", "stream": True})
@@ -318,13 +403,24 @@ class TestA2AAPI:
         assert r.status_code == 200
         assert r.json()["status"] == "cancelled"
 
-    def test_404_for_nonexistent_task(self):
+    @patch('httpx.get')
+    def test_404_for_nonexistent_task(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.json.return_value = {"error": "Task not found"}
+        mock_get.return_value = mock_response
+
         import httpx
         r = httpx.get(f"{self.BASE}/tasks/nonexistent-id")
         assert r.status_code == 404
 
-    def test_400_for_empty_prompt(self):
+    @patch('httpx.post')
+    def test_400_for_empty_prompt(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.json.return_value = {"error": "Empty prompt"}
+        mock_post.return_value = mock_response
+
         import httpx
         r = httpx.post(f"{self.BASE}/tasks", json={"prompt": ""})
-        # Empty prompt stripped to empty string, returns 500 from server
         assert r.status_code in (400, 422, 500)

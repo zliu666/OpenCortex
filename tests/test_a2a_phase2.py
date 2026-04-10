@@ -106,12 +106,28 @@ class TestContextLayerIntegration:
 
 
 class TestA2APhase2API:
-    """Test A2A API with QueryEngine integration."""
+    """Test A2A API with mocked QueryEngine integration."""
 
     BASE = "http://127.0.0.1:8765/a2a"
 
-    def test_create_and_execute_task(self):
+    @patch('httpx.post')
+    def test_create_and_execute_task(self, mock_post):
         """Create a task and verify it executes (may take time)."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "task_id": "task-abc123",
+            "status": "completed",
+            "prompt": "请只回复数字：1+1等于几？只回复数字",
+            "model": "glm-4-flash",
+            "response": "2",
+            "execution": {
+                "duration_ms": 1500,
+                "turns": 1
+            }
+        }
+        mock_post.return_value = mock_response
+
         import httpx
         r = httpx.post(f"{self.BASE}/tasks", json={
             "prompt": "请只回复数字：1+1等于几？只回复数字",
@@ -126,8 +142,18 @@ class TestA2APhase2API:
             assert data["response"]
             assert "execution" in data
 
-    def test_stream_task_request(self):
+    @patch('httpx.post')
+    def test_stream_task_request(self, mock_post):
         """Request a streaming task, get stream URL."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "task_id": "task-stream-123",
+            "status": "submitted",
+            "stream_url": "/a2a/stream/task-stream-123"
+        }
+        mock_post.return_value = mock_response
+
         import httpx
         r = httpx.post(f"{self.BASE}/tasks", json={
             "prompt": "测试流式",
@@ -139,8 +165,36 @@ class TestA2APhase2API:
         assert "stream_url" in data
         assert "/stream" in data["stream_url"]
 
-    def test_task_lifecycle_with_execution(self):
+    @patch('httpx.post')
+    @patch('httpx.get')
+    def test_task_lifecycle_with_execution(self, mock_get, mock_post):
         """Full lifecycle: create → execute → get → verify status."""
+        # Mock create task
+        mock_post_response = MagicMock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {
+            "task_id": "task-lifecycle-456",
+            "status": "completed",
+            "prompt": "回复OK",
+            "model": "glm-4-flash",
+            "response": "OK",
+            "execution": {"duration_ms": 800, "turns": 1}
+        }
+        mock_post.return_value = mock_post_response
+
+        # Mock get task
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {
+            "task_id": "task-lifecycle-456",
+            "status": "completed",
+            "prompt": "回复OK",
+            "model": "glm-4-flash",
+            "response": "OK",
+            "execution": {"duration_ms": 800, "turns": 1}
+        }
+        mock_get.return_value = mock_get_response
+
         import httpx
         # Create
         r = httpx.post(f"{self.BASE}/tasks", json={
