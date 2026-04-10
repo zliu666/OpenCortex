@@ -168,20 +168,49 @@ def build_inherited_cli_flags(
 def build_inherited_env_vars() -> dict[str, str]:
     """Build environment variables to forward to spawned teammates.
 
-    Always includes ``OPENHARNESS_AGENT_TEAMS=1`` plus any provider/proxy
-    vars that are set in the current process.
+    Always includes system-level necessary variables (PATH, HOME, LANG)
+    plus provider/proxy vars, but filters out sensitive OpenCortex config
+    to enable per-agent environment isolation.
 
     Returns:
         Dict of env var name → value to merge into the subprocess environment.
     """
-    env: dict[str, str] = {
+    # System-level necessary variables
+    inherited_vars = {
+        "PATH": os.environ.get("PATH", ""),
+        "HOME": os.environ.get("HOME", ""),
+        "LANG": os.environ.get("LANG", "en_US.UTF-8"),
+        "USER": os.environ.get("USER", ""),
+        "SHELL": os.environ.get("SHELL", ""),
+        "TERM": os.environ.get("TERM", ""),
+        "PWD": os.environ.get("PWD", ""),
         "OPENHARNESS_AGENT_TEAMS": "1",
     }
 
+    # Sensitive variables that should not be inherited unless explicitly
+    # specified in the agent's env configuration
+    sensitive_keys = [
+        "OPENHARNESS_CONFIG_DIR",
+        "OPENHARNESS_PROFILE",
+        "OPENHARNESS_MODEL",
+        "OPENHARNESS_PROVIDER_KEYS",
+        "ZHIPU_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "MINIMAX_API_KEY",
+        "OPENHARNESS_USER_DATA_DIR",
+    ]
+
+    env: dict[str, str] = dict(inherited_vars)
+
+    # Forward safe teammate env vars (proxy, CA bundles, etc.)
     for key in _TEAMMATE_ENV_VARS:
         value = os.environ.get(key)
         if value:
             env[key] = value
+
+    # Filter out sensitive keys (keep only system vars)
+    env = {k: v for k, v in env.items() if k not in sensitive_keys or k in inherited_vars}
 
     return env
 

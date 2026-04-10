@@ -309,6 +309,9 @@ class TeammateSpawnConfig:
     subscriptions: list[str] = field(default_factory=list)
     """Event topics this teammate subscribes to."""
 
+    env: dict[str, str] | None = None
+    """Agent-specific environment variables. These override inherited vars."""
+
 
 # ---------------------------------------------------------------------------
 # Spawn result & messaging

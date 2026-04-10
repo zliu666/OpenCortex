@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from opencortex.swarm.message_bus import MessageBus, Message, MessageType
 from opencortex.swarm.spawn_utils import (
     build_inherited_cli_flags,
     build_inherited_env_vars,
@@ -47,10 +48,14 @@ class SubprocessBackend:
     # WorktreeManager instance for creating/removing worktrees
     _worktree_manager: WorktreeManager
 
+    # Message bus for inter-agent communication
+    _message_bus: MessageBus
+
     def __init__(self) -> None:
         self._agent_tasks = {}
         self._agent_worktrees = {}
         self._worktree_manager = WorktreeManager()
+        self._message_bus = MessageBus()
 
     def is_available(self) -> bool:
         """Subprocess backend is always available."""
@@ -104,12 +109,22 @@ class SubprocessBackend:
             model=config.model,
             plan_mode_required=config.plan_mode_required,
         )
-        extra_env = build_inherited_env_vars()
+
+        # Build base inherited environment
+        base_env = build_inherited_env_vars()
+
+        # Merge agent-specific env if provided
+        if config.env:
+            final_env = {**base_env, **config.env}
+        else:
+            final_env = base_env
+
+        # Apply execution provider env (highest priority)
         if config.execution_provider_env:
-            extra_env.update(config.execution_provider_env)
+            final_env = {**final_env, **config.execution_provider_env}
 
         # Build environment export prefix for shell invocation
-        env_prefix = " ".join(f"{k}={v!r}" for k, v in extra_env.items())
+        env_prefix = " ".join(f"{k}={v!r}" for k, v in final_env.items())
 
         teammate_cmd = get_teammate_command()
         if teammate_cmd.endswith("python") or teammate_cmd.endswith("python3") or "/python" in teammate_cmd:
@@ -142,6 +157,8 @@ class SubprocessBackend:
             )
 
         self._agent_tasks[agent_id] = record.id
+        # Register agent in message bus
+        self._message_bus.register_agent(agent_id)
         logger.debug("Spawned teammate %s as task %s", agent_id, record.id)
         return SpawnResult(
             task_id=record.id,
@@ -154,6 +171,9 @@ class SubprocessBackend:
 
         The message is serialised as a single JSON line so the teammate can
         distinguish structured messages from plain prompts.
+
+        Also sends the message through the message bus for other agents to
+        potentially react or monitor communication.
         """
         task_id = self._agent_tasks.get(agent_id)
         if task_id is None:
@@ -169,6 +189,16 @@ class SubprocessBackend:
         if message.summary:
             payload["summary"] = message.summary
 
+        # Send through message bus for inter-agent communication
+        self._message_bus.send(
+            from_agent=message.from_agent or "system",
+            to_agent=agent_id,
+            message_type=MessageType.TEXT,
+            content=message.text,
+            payload=payload,
+        )
+
+        # Also send via stdin for the target agent
         manager = get_task_manager()
         await manager.write_to_task(task_id, json.dumps(payload))
         logger.debug("Sent message to %s (task %s)", agent_id, task_id)
@@ -197,6 +227,9 @@ class SubprocessBackend:
             # Task may have already finished — still clean up mapping
         finally:
             self._agent_tasks.pop(agent_id, None)
+
+        # Unregister from message bus
+        self._message_bus.unregister_agent(agent_id)
 
         # Clean up worktree if one was created for this agent
         worktree_slug = self._agent_worktrees.pop(agent_id, None)
