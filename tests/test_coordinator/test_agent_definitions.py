@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from opencortex.coordinator.agent_definitions import (
+from opencortex.swarm.agent_definitions import (
     AgentDefinition,
     _parse_agent_frontmatter,
     get_builtin_agent_definitions,

@@ -723,7 +723,7 @@ def create_default_command_registry() -> CommandRegistry:
         settings.api_key = api_key
         # Also save to provider_keys for current provider
         current_provider = detect_provider(settings)
-        for pid, pconfig in __import__("opencortex.providers.manager", fromlist=["PRESET_PROVIDERS"]).PRESET_PROVIDERS.items():
+        for pid, pconfig in __import__("opencortex.engine.provider_manager", fromlist=["PRESET_PROVIDERS"]).PRESET_PROVIDERS.items():
             if pconfig.get("base_url") == settings.base_url:
                 settings.provider_keys[pid] = api_key
                 break
@@ -995,7 +995,7 @@ def create_default_command_registry() -> CommandRegistry:
             return CommandResult(message=f"Model set to {tokens[1]}. Restart session to use it.")
         if tokens[0] == "list":
             # List models for current provider
-            from opencortex.providers.manager import ProviderManager
+            from opencortex.engine.provider_manager import ProviderManager
             pm = ProviderManager()
             # Find provider by matching base_url
             current_provider = None
@@ -1316,7 +1316,7 @@ def create_default_command_registry() -> CommandRegistry:
 
     # --- Provider management (menu-driven) ---
     async def _provider_handler(args: str, context: CommandContext) -> CommandResult:
-        from opencortex.providers.manager import ProviderManager
+        from opencortex.engine.provider_manager import ProviderManager
         pm = ProviderManager()
         tokens = args.strip().split()
         settings = load_settings()

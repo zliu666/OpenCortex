@@ -166,10 +166,10 @@ async def task_security_audit_with_hooks():
 async def task_coordinator_code_review():
     """Coordinator delegates code review to 2 worker agents, synthesizes results."""
 
-    from opencortex.coordinator.coordinator_mode import (
+    from opencortex.swarm.coordinator_mode import (
         get_coordinator_system_prompt, format_task_notification, TaskNotification,
     )
-    from opencortex.coordinator.agent_definitions import get_agent_definition
+    from opencortex.swarm.agent_definitions import get_agent_definition
     from opencortex.swarm.in_process import start_in_process_teammate, TeammateAbortController
     from opencortex.swarm.types import TeammateSpawnConfig
     from opencortex.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
@@ -295,7 +295,7 @@ async def task_migration_plan_with_memory():
     """Agent analyzes AutoAgent, saves findings to memory, creates migration plan,
     saves session for later resume."""
 
-    from opencortex.coordinator.agent_definitions import get_agent_definition
+    from opencortex.swarm.agent_definitions import get_agent_definition
     from opencortex.skills.registry import SkillRegistry
     from opencortex.skills.types import SkillDefinition
     from opencortex.memory.manager import add_memory_entry, list_memory_files, remove_memory_entry
@@ -514,7 +514,7 @@ if __name__ == "__main__":
 async def task_full_pipeline():
     """Simulate the full research→plan→implement→verify pipeline with coordinator."""
 
-    from opencortex.coordinator.coordinator_mode import (
+    from opencortex.swarm.coordinator_mode import (
         get_coordinator_system_prompt, format_task_notification, TaskNotification,
     )
     from opencortex.swarm.in_process import start_in_process_teammate, TeammateAbortController

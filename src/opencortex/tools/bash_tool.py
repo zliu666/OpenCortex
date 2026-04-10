@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from opencortex.sandbox import SandboxUnavailableError
+from opencortex.security.sandbox import SandboxUnavailableError
 from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from opencortex.utils.shell import create_shell_subprocess
 

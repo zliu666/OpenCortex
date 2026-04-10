@@ -25,7 +25,7 @@ from opencortex.hooks.schemas import (
     PromptHookDefinition,
 )
 from opencortex.hooks.types import AggregatedHookResult, HookResult
-from opencortex.sandbox import SandboxUnavailableError
+from opencortex.security.sandbox import SandboxUnavailableError
 from opencortex.utils.shell import create_shell_subprocess
 
 

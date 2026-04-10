@@ -25,7 +25,7 @@ from opencortex.services.cron import (
     mark_job_run,
     validate_cron_expression,
 )
-from opencortex.sandbox import SandboxUnavailableError
+from opencortex.security.sandbox import SandboxUnavailableError
 from opencortex.utils.shell import create_shell_subprocess
 
 logger = logging.getLogger(__name__)

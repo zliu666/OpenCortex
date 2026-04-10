@@ -10,7 +10,7 @@ from pathlib import Path
 
 from opencortex.config import Settings, load_settings
 from opencortex.platforms import PlatformName, get_platform
-from opencortex.sandbox import wrap_command_for_sandbox
+from opencortex.security.sandbox import wrap_command_for_sandbox
 
 
 def resolve_shell_command(

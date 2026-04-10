@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from opencortex.coordinator.agent_definitions import AgentDefinition
+from opencortex.swarm.agent_definitions import AgentDefinition
 from opencortex.mcp.types import McpServerConfig
 from opencortex.plugins.schemas import PluginManifest
 from opencortex.skills.types import SkillDefinition

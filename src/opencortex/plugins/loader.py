@@ -11,7 +11,7 @@ from typing import Any, Iterable
 import yaml
 
 from opencortex.config.paths import get_config_dir
-from opencortex.coordinator.agent_definitions import (
+from opencortex.swarm.agent_definitions import (
     AGENT_COLORS,
     EFFORT_LEVELS,
     ISOLATION_MODES,

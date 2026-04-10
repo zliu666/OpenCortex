@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from opencortex.coordinator.coordinator_mode import (
+from opencortex.swarm.coordinator_mode import (
     TaskNotification,
     WorkerConfig,
     format_task_notification,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from opencortex.coordinator.coordinator_mode import get_team_registry
+from opencortex.swarm.coordinator_mode import get_team_registry
 from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 

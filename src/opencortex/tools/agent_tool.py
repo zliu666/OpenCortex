@@ -6,8 +6,8 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from opencortex.coordinator.agent_definitions import get_agent_definition
-from opencortex.coordinator.coordinator_mode import get_team_registry
+from opencortex.swarm.agent_definitions import get_agent_definition
+from opencortex.swarm.coordinator_mode import get_team_registry
 from opencortex.swarm.registry import get_backend_registry
 from opencortex.swarm.types import TeammateSpawnConfig
 from opencortex.tools.base import BaseTool, ToolExecutionContext, ToolResult
