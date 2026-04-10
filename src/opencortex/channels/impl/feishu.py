@@ -5,6 +5,7 @@ import json
 import os
 import re
 import threading
+import time
 from collections import OrderedDict
 from typing import Any
 
@@ -748,7 +749,33 @@ class FeishuChannel(BaseChannel):
 
         return None, f"[{msg_type}: download failed]"
 
-    def _send_message_sync(self, receive_id_type: str, receive_id: str, msg_type: str, content: str) -> bool:
+    def _send_reply_sync(self, message_id: str, msg_type: str, content: str) -> bool:
+        """Send a reply (quote-reply) to a specific message."""
+        from lark_oapi.api.im.v1 import ReplyMessageRequest, ReplyMessageRequestBody
+        try:
+            request = ReplyMessageRequest.builder() \
+                .message_id(message_id) \
+                .request_body(
+                    ReplyMessageRequestBody.builder()
+                    .msg_type(msg_type)
+                    .content(content)
+                    .build()
+                ).build()
+            response = self._client.im.v1.message.reply(request)
+            if not response.success():
+                # Fallback to regular send if reply API fails
+                logger.warning(
+                    "Reply API failed (code=%s), falling back to regular send: %s",
+                    response.code, response.msg,
+                )
+                return False
+            logger.debug("Replied to message %s", message_id)
+            return True
+        except Exception as e:
+            logger.warning("Error replying to message %s: %s", message_id, e)
+            return False
+
+    def _send_message_sync(self, receive_id_type: str, receive_id: str, msg_type: str, content: str, max_retries: int = 3) -> bool:
         """Send a single message (text/image/file/interactive) synchronously."""
         from lark_oapi.api.im.v1 import CreateMessageRequest, CreateMessageRequestBody
         try:
@@ -761,15 +788,24 @@ class FeishuChannel(BaseChannel):
                     .content(content)
                     .build()
                 ).build()
-            response = self._client.im.v1.message.create(request)
-            if not response.success():
+            for attempt in range(max_retries):
+                response = self._client.im.v1.message.create(request)
+                if response.success():
+                    logger.debug("Feishu {} message sent to {}", msg_type, receive_id)
+                    return True
+                code = getattr(response, 'code', -1)
+                if code == 99991668 or code == 99991672:
+                    # Rate limit – retry with backoff
+                    wait = 2 ** attempt
+                    logger.warning("Feishu rate limited (code=%s), retrying in %ss", code, wait)
+                    time.sleep(wait)
+                    continue
                 logger.error(
                     "Failed to send Feishu {} message: code={}, msg={}, log_id={}",
                     msg_type, response.code, response.msg, response.get_log_id()
                 )
                 return False
-            logger.debug("Feishu {} message sent to {}", msg_type, receive_id)
-            return True
+            return False
         except Exception as e:
             logger.error("Error sending Feishu {} message: {}", msg_type, e)
             return False
@@ -784,6 +820,9 @@ class FeishuChannel(BaseChannel):
             receive_id_type = "chat_id" if msg.chat_id.startswith("oc_") else "open_id"
             loop = asyncio.get_running_loop()
 
+            # Determine reply target
+            reply_message_id = msg.reply_to or msg.metadata.get("message_id")
+
             for file_path in msg.media:
                 if not os.path.isfile(file_path):
                     logger.warning("Media file not found: {}", file_path)
@@ -792,52 +831,75 @@ class FeishuChannel(BaseChannel):
                 if ext in self._IMAGE_EXTS:
                     key = await loop.run_in_executor(None, self._upload_image_sync, file_path)
                     if key:
-                        await loop.run_in_executor(
-                            None, self._send_message_sync,
-                            receive_id_type, msg.chat_id, "image", json.dumps({"image_key": key}, ensure_ascii=False),
-                        )
+                        content_str = json.dumps({"image_key": key}, ensure_ascii=False)
+                        if reply_message_id:
+                            await loop.run_in_executor(
+                                None, self._send_reply_sync, reply_message_id, "image", content_str,
+                            )
+                        else:
+                            await loop.run_in_executor(
+                                None, self._send_message_sync,
+                                receive_id_type, msg.chat_id, "image", content_str,
+                            )
                 else:
                     key = await loop.run_in_executor(None, self._upload_file_sync, file_path)
                     if key:
-                        # Use msg_type "media" for audio/video so users can play inline;
-                        # "file" for everything else (documents, archives, etc.)
                         if ext in self._AUDIO_EXTS or ext in self._VIDEO_EXTS:
                             media_type = "media"
                         else:
                             media_type = "file"
-                        await loop.run_in_executor(
-                            None, self._send_message_sync,
-                            receive_id_type, msg.chat_id, media_type, json.dumps({"file_key": key}, ensure_ascii=False),
-                        )
+                        content_str = json.dumps({"file_key": key}, ensure_ascii=False)
+                        if reply_message_id:
+                            await loop.run_in_executor(
+                                None, self._send_reply_sync, reply_message_id, media_type, content_str,
+                            )
+                        else:
+                            await loop.run_in_executor(
+                                None, self._send_message_sync,
+                                receive_id_type, msg.chat_id, media_type, content_str,
+                            )
 
             if msg.content and msg.content.strip():
                 fmt = self._detect_msg_format(msg.content)
 
                 if fmt == "text":
-                    # Short plain text – send as simple text message
                     text_body = json.dumps({"text": msg.content.strip()}, ensure_ascii=False)
-                    await loop.run_in_executor(
-                        None, self._send_message_sync,
-                        receive_id_type, msg.chat_id, "text", text_body,
-                    )
+                    if reply_message_id:
+                        await loop.run_in_executor(
+                            None, self._send_reply_sync, reply_message_id, "text", text_body,
+                        )
+                    else:
+                        await loop.run_in_executor(
+                            None, self._send_message_sync,
+                            receive_id_type, msg.chat_id, "text", text_body,
+                        )
 
                 elif fmt == "post":
-                    # Medium content with links – send as rich-text post
                     post_body = self._markdown_to_post(msg.content)
-                    await loop.run_in_executor(
-                        None, self._send_message_sync,
-                        receive_id_type, msg.chat_id, "post", post_body,
-                    )
+                    if reply_message_id:
+                        await loop.run_in_executor(
+                            None, self._send_reply_sync, reply_message_id, "post", post_body,
+                        )
+                    else:
+                        await loop.run_in_executor(
+                            None, self._send_message_sync,
+                            receive_id_type, msg.chat_id, "post", post_body,
+                        )
 
                 else:
-                    # Complex / long content – send as interactive card
                     elements = self._build_card_elements(msg.content)
                     for chunk in self._split_elements_by_table_limit(elements):
                         card = {"config": {"wide_screen_mode": True}, "elements": chunk}
-                        await loop.run_in_executor(
-                            None, self._send_message_sync,
-                            receive_id_type, msg.chat_id, "interactive", json.dumps(card, ensure_ascii=False),
-                        )
+                        card_str = json.dumps(card, ensure_ascii=False)
+                        if reply_message_id:
+                            await loop.run_in_executor(
+                                None, self._send_reply_sync, reply_message_id, "interactive", card_str,
+                            )
+                        else:
+                            await loop.run_in_executor(
+                                None, self._send_message_sync,
+                                receive_id_type, msg.chat_id, "interactive", card_str,
+                            )
 
         except Exception as e:
             logger.error("Error sending Feishu message: {}", e)
@@ -891,6 +953,12 @@ class FeishuChannel(BaseChannel):
             if msg_type == "text":
                 text = content_json.get("text", "")
                 if text:
+                    # Strip @bot mention in group chats
+                    if chat_type == "group":
+                        mention_key = content_json.get("mention", "")
+                        if mention_key:
+                            # Feishu sends mention as @_user_x in text; remove it
+                            text = re.sub(r'@_user_\d+', '', text).strip()
                     content_parts.append(text)
 
             elif msg_type == "post":
