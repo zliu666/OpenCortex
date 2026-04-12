@@ -48,6 +48,7 @@ class FeishuConfig(BaseChannelConfig):
     app_secret: str = ""
     encrypt_key: str = ""
     verification_token: str = ""
+    react_emoji: str = "THUMBSUP"
 
 
 class DingTalkConfig(BaseChannelConfig):

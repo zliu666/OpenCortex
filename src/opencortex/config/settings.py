@@ -16,6 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from opencortex.config.schema import ChannelConfigs
 from opencortex.hooks.schemas import HookDefinition
 from opencortex.mcp.types import McpServerConfig
 from opencortex.permissions.modes import PermissionMode
@@ -147,6 +148,9 @@ class Settings(BaseModel):
     effort: str = "medium"
     passes: int = 1
     verbose: bool = False
+
+    # Channels
+    channels: ChannelConfigs = Field(default_factory=ChannelConfigs)
 
     # Swarm / pane visualization
     pane_visualization: bool = True

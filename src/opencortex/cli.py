@@ -1082,12 +1082,110 @@ def provider_remove(
 
 # ---- serve subcommand ----
 
+def _serve_channel(channel_name: str) -> None:
+    """Start a single channel bot."""
+    _serve_channels([channel_name])
+
+
+def _serve_channels(channel_names: list[str]) -> None:
+    """Start channel bots with the ChannelManager + ChannelBridge pattern."""
+    import asyncio
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
+        stream=sys.stderr,
+    )
+
+    from opencortex.channels.bus.queue import MessageBus
+    from opencortex.channels.adapter import ChannelBridge
+    from opencortex.channels.impl.manager import ChannelManager
+    from opencortex.config import load_settings
+    from opencortex.config.schema import Config, ChannelConfigs
+
+    settings = load_settings()
+
+    # Build Config from settings.channels, only enabling requested channels
+    channels_data = settings.channels.model_dump()
+    for name in list(channels_data.keys()):
+        if name in ("send_progress", "send_tool_hints"):
+            continue
+        if isinstance(channels_data[name], dict):
+            if name not in channel_names:
+                channels_data[name]["enabled"] = False
+
+    config = Config(channels=ChannelConfigs.model_validate(channels_data))
+
+    async def _run() -> None:
+        bus = MessageBus()
+        manager = ChannelManager(config, bus)
+
+        if not manager.channels:
+            print(f"Error: No channels could be initialized. Requested: {channel_names}", file=sys.stderr)
+            return
+
+        # Build a lightweight QueryEngine for processing messages
+        from opencortex.ui.runtime import build_runtime
+        bundle = await build_runtime(cwd=str(Path.cwd()))
+
+        bridge = ChannelBridge(engine=bundle.engine, bus=bus)
+
+        print(f"Starting channels: {', '.join(manager.enabled_channels)}", flush=True)
+        print("Press Ctrl+C to stop", flush=True)
+
+        # Run bridge and manager concurrently
+        bridge_task = asyncio.create_task(bridge.run())
+        try:
+            await manager.start_all()
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            pass
+        finally:
+            await bridge.stop()
+            await manager.stop_all()
+
+    try:
+        asyncio.run(_run())
+    except KeyboardInterrupt:
+        print("\nStopped.", flush=True)
+
+
 @serve_app.callback(invoke_without_command=True)
 def serve_cmd(
     host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
     port: int = typer.Option(8765, "--port", help="Bind port"),
+    channel: str | None = typer.Option(None, "--channel", help="Start a channel bot (e.g. feishu) instead of HTTP server"),
 ) -> None:
-    """Start the OpenCortex HTTP API server."""
+    """Start the OpenCortex HTTP API server or a channel bot."""
+    if channel:
+        _serve_channel(channel)
+        return
+
+    # Check if settings has channels enabled; if so, start channel mode
+    from opencortex.config import load_settings
+    settings = load_settings()
+    enabled_channels = [
+        name for name, cfg in [
+            ("feishu", settings.channels.feishu),
+            ("telegram", settings.channels.telegram),
+            ("discord", settings.channels.discord),
+            ("slack", settings.channels.slack),
+            ("whatsapp", settings.channels.whatsapp),
+            ("dingtalk", settings.channels.dingtalk),
+            ("email", settings.channels.email),
+            ("qq", settings.channels.qq),
+            ("matrix", settings.channels.matrix),
+            ("mochat", settings.channels.mochat),
+        ]
+        if getattr(cfg, "enabled", False)
+    ]
+
+    if enabled_channels:
+        print(f"Channels enabled in settings: {', '.join(enabled_channels)}", flush=True)
+        print("Starting channel mode...", flush=True)
+        _serve_channels(enabled_channels)
+        return
+
     try:
         import uvicorn
     except ImportError:
