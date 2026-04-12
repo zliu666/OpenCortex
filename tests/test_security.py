@@ -187,6 +187,28 @@ class TestSecurityLayer:
         assert "blocked" in result.reason.lower()
 
     @pytest.mark.asyncio
+    async def test_check_includes_category(self):
+        """check_tool_call should populate category from ToolClassifier."""
+        call_count = 0
+        mock = AsyncMock()
+
+        async def _stream(request):
+            nonlocal call_count
+            call_count += 1
+            event = MagicMock()
+            event.text = "A" if call_count == 1 else "True"
+            yield event
+
+        mock.stream_message = _stream
+        layer = SecurityLayer(mock, "test-model")
+        result = await layer.check_tool_call(
+            "web_fetch", {"url": "https://example.com"},
+            "Fetch a URL", "Get example.com",
+        )
+        assert result.allowed is True
+        assert result.category is not None
+
+    @pytest.mark.asyncio
     async def test_sanitize_passthrough_when_disabled(self):
         mock = AsyncMock()
         layer = SecurityLayer(mock, "test-model", sanitizer_enabled=False)

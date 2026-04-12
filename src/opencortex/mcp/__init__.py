@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from opencortex.mcp.client import McpClientManager, McpServerNotConnectedError
+    from opencortex.mcp.server import create_mcp_app, mcp_server, register_tools_from_registry
     from opencortex.mcp.types import (
         McpConnectionStatus,
         McpHttpServerConfig,
@@ -28,7 +29,10 @@ __all__ = [
     "McpStdioServerConfig",
     "McpToolInfo",
     "McpWebSocketServerConfig",
+    "create_mcp_app",
     "load_mcp_server_configs",
+    "mcp_server",
+    "register_tools_from_registry",
 ]
 
 
@@ -45,6 +49,10 @@ def __getattr__(name: str):
         from opencortex.mcp.config import load_mcp_server_configs
 
         return load_mcp_server_configs
+    if name in {"create_mcp_app", "mcp_server", "register_tools_from_registry"}:
+        from opencortex.mcp import server as _server
+
+        return {"create_mcp_app": _server.create_mcp_app, "mcp_server": _server.mcp_server, "register_tools_from_registry": _server.register_tools_from_registry}[name]
     if name in {
         "McpConnectionStatus",
         "McpHttpServerConfig",

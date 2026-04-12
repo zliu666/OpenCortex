@@ -35,7 +35,7 @@ from opencortex.memory import (
     list_memory_files,
     remove_memory_entry,
 )
-from opencortex.output_styles import load_output_styles
+from opencortex.themes import load_output_styles
 from opencortex.permissions import PermissionChecker, PermissionMode
 from opencortex.plugins import load_plugins
 from opencortex.prompts import build_runtime_system_prompt
@@ -52,7 +52,7 @@ from opencortex.skills import load_skill_registry
 from opencortex.tasks import get_task_manager
 
 if TYPE_CHECKING:
-    from opencortex.state import AppStateStore
+    from opencortex.engine import AppStateStore
     from opencortex.tools.base import ToolRegistry
 
 
@@ -119,7 +119,7 @@ class CommandRegistry:
 
     def help_text(self, language: str = "en") -> str:
         """Return a formatted summary of all registered commands."""
-        from opencortex.i18n import t
+        from opencortex.utils.i18n import t
         header = "可用命令：" if language == "zh" else "Available commands:"
         lines = [header]
         for command in sorted(self._commands.values(), key=lambda item: item.name):

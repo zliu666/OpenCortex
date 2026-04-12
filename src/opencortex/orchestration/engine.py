@@ -1,17 +1,24 @@
 """Orchestration engine for task execution."""
 
 import asyncio
+import logging
 import time
 from typing import TYPE_CHECKING, Callable, Any
 
 if TYPE_CHECKING:
     from .types import TaskGraph, TaskState, OrchestrationResult
 
+log = logging.getLogger(__name__)
+
 
 class OrchestrationEngine:
     """Task orchestration engine.
 
-    Integrates planner + scheduler + tracker + aggregator for end-to-end task execution.
+    Integrates planner + scheduler + tracker + aggregator for end-to-end
+    task execution.  When *dual_model* mode is enabled (see ``settings.json``),
+    each subtask is routed through :class:`~opencortex.swarm.task_tier.TaskTierRouter`
+    so that CORE/CRITICAL tasks use the strong model and SYSTEM/UTILITY tasks
+    use the lightweight executor (e.g. MiniMax-M2.7).
     """
 
     def __init__(self):
@@ -26,6 +33,10 @@ class OrchestrationEngine:
         self._tracker = TaskTracker()
         self._aggregator = ResultAggregator()
         self._active_graphs: dict[str, "TaskGraph"] = {}
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     async def submit(
         self,
@@ -57,7 +68,10 @@ class OrchestrationEngine:
         Args:
             graph_id: ID of the task graph to execute
             executor: Optional executor function(task_id, graph) -> result.
-                     If None, uses a mock executor for testing.
+                     If None, auto-selects executor based on dual_model settings:
+                     - When dual_model is enabled, uses :meth:`_tiered_executor`
+                       which routes each task via TaskTierRouter.
+                     - Otherwise, falls back to :meth:`_mock_executor`.
 
         Returns:
             OrchestrationResult containing aggregated results
@@ -68,9 +82,8 @@ class OrchestrationEngine:
         if not graph:
             raise ValueError(f"Graph not found: {graph_id}")
 
-        # Default mock executor for testing
         if executor is None:
-            executor = self._mock_executor
+            executor = self._auto_executor()
 
         # Execute tasks in layers based on dependencies
         layers = self._scheduler.schedule(graph)
@@ -150,6 +163,105 @@ class OrchestrationEngine:
 
         # Clean up
         del self._active_graphs[graph_id]
+
+    # ------------------------------------------------------------------
+    # Executor selection
+    # ------------------------------------------------------------------
+
+    def _auto_executor(self) -> Callable[[str, "TaskGraph"], Any]:
+        """Return the default executor based on dual_model settings.
+
+        - **dual_model enabled** → :meth:`_tiered_executor` which routes each
+          task through TaskTierRouter and uses LightweightExecutor for
+          SYSTEM/UTILITY tasks.
+        - **dual_model disabled** → :meth:`_mock_executor` (legacy behaviour).
+        """
+        try:
+            from opencortex.config.settings import load_settings
+            settings = load_settings()
+            if settings.dual_model.enabled:
+                log.info("dual_model enabled — using tiered executor")
+                return self._tiered_executor
+        except Exception:
+            log.debug("Could not load settings, falling back to mock executor", exc_info=True)
+
+        return self._mock_executor
+
+    def _tiered_executor(self, task_id: str, graph: "TaskGraph") -> Any:
+        """Executor that routes tasks by tier.
+
+        - CORE / CRITICAL → returns a sentinel dict requesting the strong model.
+        - SYSTEM / UTILITY → delegates to LightweightExecutor for cheap execution.
+
+        This is a *synchronous* callable.  The async lightweight-executor call
+        is scheduled on the *running* event loop when one is available
+        (``_execute_task`` runs us via ``asyncio.to_thread``), otherwise
+        falls back to ``asyncio.run`` in a fresh loop.
+        """
+        from opencortex.swarm.task_tier import TaskTier, TaskTierRouter
+
+        task = graph.nodes[task_id]
+        router = TaskTierRouter()
+        tier = router.classify(task.description)
+
+        if tier in (TaskTier.CORE, TaskTier.CRITICAL):
+            model = router.route(tier)
+            return {
+                "_tier": tier.value,
+                "_model": model,
+                "task_id": task_id,
+                "task": task.name,
+                "description": task.description,
+                "result": f"[{tier.value.upper()}] Requires strong model: {model}",
+            }
+
+        # SYSTEM / UTILITY → lightweight executor
+        try:
+            from opencortex.swarm.lightweight_executor import LightweightExecutor
+            executor = LightweightExecutor(tier=tier)
+            result_text = self._run_async(executor.summarize(task.description))
+            return {
+                "_tier": tier.value,
+                "_model": executor.model,
+                "task_id": task_id,
+                "task": task.name,
+                "description": task.description,
+                "result": result_text,
+            }
+        except Exception as exc:
+            log.warning(
+                "Lightweight executor failed for task %s, falling back: %s",
+                task_id, exc,
+            )
+            return {
+                "_tier": tier.value,
+                "_model": "fallback",
+                "task_id": task_id,
+                "task": task.name,
+                "description": task.description,
+                "result": f"Fallback: {task.description}",
+            }
+
+    @staticmethod
+    def _run_async(coro) -> Any:
+        """Run an async coroutine from sync code.
+
+        When called from ``asyncio.to_thread`` there is no running loop in the
+        current thread, so ``asyncio.run()`` works directly.  When called
+        directly from an async context (e.g. tests), we offload to a thread.
+        """
+        try:
+            asyncio.get_running_loop()
+            # Already inside a running loop — run in a worker thread
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(asyncio.run, coro).result()
+        except RuntimeError:
+            return asyncio.run(coro)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
     async def _execute_task(
         self,

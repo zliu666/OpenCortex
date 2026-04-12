@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from opencortex.security.privilege import ToolPrivilege, ToolPrivilegeAssignor
 from opencortex.security.sanitizer import ToolResultSanitizer
+from opencortex.security.tool_classifier import ToolCategory, ToolClassifier
 from opencortex.security.validator import ToolCallValidator
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ class SecurityCheckResult:
     reason: str = ""
     sanitized_output: str | None = None  # set after tool execution if sanitizer runs
     privilege: ToolPrivilege | None = None
+    category: ToolCategory | None = None
 
 
 class SecurityLayer:
@@ -42,6 +44,7 @@ class SecurityLayer:
         sanitizer_enabled: bool = True,
         privilege_assignor_enabled: bool = True,
     ) -> None:
+        self._classifier = ToolClassifier()
         self._validator = ToolCallValidator(api_client, model) if validator_enabled else None
         self._sanitizer = ToolResultSanitizer(api_client, model) if sanitizer_enabled else None
         self._privilege_assignor = ToolPrivilegeAssignor(api_client, model) if privilege_assignor_enabled else None
@@ -59,6 +62,11 @@ class SecurityLayer:
         Returns SecurityCheckResult with allowed=True/False.
         """
         privilege = None
+        category = None
+
+        # Step 0: rule-based tool classification
+        category = self._classifier.classify(tool_name, tool_description)
+        log.info("security layer: %s classified as %s", tool_name, category.value)
 
         # Step 1: classify privilege level
         if self._privilege_assignor is not None:
@@ -85,7 +93,7 @@ class SecurityLayer:
                     privilege=privilege,
                 )
 
-        return SecurityCheckResult(allowed=True, privilege=privilege)
+        return SecurityCheckResult(allowed=True, privilege=privilege, category=category)
 
     async def sanitize_tool_result(self, tool_result_text: str) -> str:
         """Post-execution: remove injected instructions from tool output."""

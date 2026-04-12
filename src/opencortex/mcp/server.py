@@ -10,9 +10,16 @@ from mcp.server.fastmcp import FastMCP
 
 from opencortex.tools import create_default_tool_registry
 from opencortex.tools.base import ToolExecutionContext, ToolResult
+from opencortex.tools.browser_tool import (
+    BrowserNavigateTool,
+    BrowserScreenshotTool,
+    BrowserClickTool,
+    BrowserTypeTool,
+    BrowserSnapshotTool,
+)
 from opencortex.config import load_settings
 
-logger = logging.getLogger("opencortex.mcp_server")
+logger = logging.getLogger("opencortex.mcp.server")
 
 # Create MCP server
 mcp_server = FastMCP(name="opencortex")
@@ -119,6 +126,52 @@ async def list_files(directory: str = ".") -> str:
         return "\n".join(sorted(entries))
     except Exception as e:
         return f"Error: {e}"
+
+
+# Browser automation tools
+@mcp_server.tool()
+async def browser_navigate(url: str) -> str:
+    """Navigate to a URL in the browser."""
+    tool = BrowserNavigateTool()
+    args = tool.input_model(url=url)
+    result = await tool.execute(args, _create_context())
+    return result.output
+
+
+@mcp_server.tool()
+async def browser_screenshot(full_page: bool = False) -> str:
+    """Take a screenshot of the current page."""
+    tool = BrowserScreenshotTool()
+    args = tool.input_model(full_page=full_page)
+    result = await tool.execute(args, _create_context())
+    return result.output
+
+
+@mcp_server.tool()
+async def browser_click(selector: str) -> str:
+    """Click an element on the page."""
+    tool = BrowserClickTool()
+    args = tool.input_model(selector=selector)
+    result = await tool.execute(args, _create_context())
+    return result.output
+
+
+@mcp_server.tool()
+async def browser_type(selector: str, text: str, delay_ms: int = 0) -> str:
+    """Type text into an element."""
+    tool = BrowserTypeTool()
+    args = tool.input_model(selector=selector, text=text, delay_ms=delay_ms)
+    result = await tool.execute(args, _create_context())
+    return result.output
+
+
+@mcp_server.tool()
+async def browser_snapshot(max_length: int = 8000) -> str:
+    """Get the accessibility tree of the current page."""
+    tool = BrowserSnapshotTool()
+    args = tool.input_model(max_length=max_length)
+    result = await tool.execute(args, _create_context())
+    return result.output
 
 
 def create_mcp_app(cwd: str = ".") -> FastMCP:

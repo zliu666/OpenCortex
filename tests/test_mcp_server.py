@@ -9,32 +9,32 @@ class TestMCPModule:
     """Test MCP module imports and basic functionality."""
 
     def test_mcp_server_import(self):
-        from opencortex.mcp_server import mcp_server
+        from opencortex.mcp import mcp_server
         assert mcp_server is not None
         assert mcp_server.name == "opencortex"
 
     def test_bash_tool_registered(self):
-        from opencortex.mcp_server import mcp_server
+        from opencortex.mcp import mcp_server
         tool_names = [t.name for t in mcp_server._tool_manager.list_tools()]
         assert "bash" in tool_names
 
     def test_read_file_tool_registered(self):
-        from opencortex.mcp_server import mcp_server
+        from opencortex.mcp import mcp_server
         tool_names = [t.name for t in mcp_server._tool_manager.list_tools()]
         assert "read_file" in tool_names
 
     def test_write_file_tool_registered(self):
-        from opencortex.mcp_server import mcp_server
+        from opencortex.mcp import mcp_server
         tool_names = [t.name for t in mcp_server._tool_manager.list_tools()]
         assert "write_file" in tool_names
 
     def test_edit_file_tool_registered(self):
-        from opencortex.mcp_server import mcp_server
+        from opencortex.mcp import mcp_server
         tool_names = [t.name for t in mcp_server._tool_manager.list_tools()]
         assert "edit_file" in tool_names
 
     def test_list_files_tool_registered(self):
-        from opencortex.mcp_server import mcp_server
+        from opencortex.mcp import mcp_server
         tool_names = [t.name for t in mcp_server._tool_manager.list_tools()]
         assert "list_files" in tool_names
 

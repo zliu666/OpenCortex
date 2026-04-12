@@ -86,6 +86,8 @@ async def run_query(
     compact_state = AutoCompactState()
 
     turn_count = 0
+    judge_extensions = 0
+    _MAX_JUDGE_EXTENSIONS = 5  # Hard cap: prevent infinite loops even if judge always says continue
     while context.max_turns is None or turn_count < context.max_turns:
         turn_count += 1
         # --- auto-compact check before calling the model ---------------
@@ -178,8 +180,15 @@ async def run_query(
 
         # --- Judge Agent: auto-extend turns when limit reached -------
         if context.max_turns is not None and turn_count >= context.max_turns:
+            if judge_extensions >= _MAX_JUDGE_EXTENSIONS:
+                log.warning(
+                    "[JudgeAgent] Reached max judge extensions (%d), stopping.",
+                    _MAX_JUDGE_EXTENSIONS,
+                )
+                raise MaxTurnsExceeded(context.max_turns)
             should_continue = await _judge_should_extend(context, messages, turn_count)
             if should_continue:
+                judge_extensions += 1
                 turn_count = 0  # reset counter, continue in the same loop
                 continue
             raise MaxTurnsExceeded(context.max_turns)
@@ -424,17 +433,15 @@ async def _judge_should_extend(
     try:
         # Use GLM 5.1 (glm-5-turbo) as the judge model
         judge_api = context.api_client
-        response = await judge_api.stream_message(
+        final_text = ""
+        async for event in judge_api.stream_message(
             ApiMessageRequest(
                 model="glm-5-turbo",  # Judge uses strongest model
                 messages=[{"role": "user", "content": judge_prompt}],
                 system_prompt=_JUDGE_SYSTEM_PROMPT,
                 max_tokens=10,
             )
-        )
-
-        final_text = ""
-        async for event in response:
+        ):
             if isinstance(event, ApiMessageCompleteEvent):
                 final_text = event.message.content or ""
                 if isinstance(final_text, list):

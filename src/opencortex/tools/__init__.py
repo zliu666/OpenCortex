@@ -41,6 +41,13 @@ from opencortex.tools.todo_write_tool import TodoWriteTool
 from opencortex.tools.tool_search_tool import ToolSearchTool
 from opencortex.tools.web_fetch_tool import WebFetchTool
 from opencortex.tools.web_search_tool import WebSearchTool
+from opencortex.tools.browser_tool import (
+    BrowserNavigateTool,
+    BrowserScreenshotTool,
+    BrowserClickTool,
+    BrowserTypeTool,
+    BrowserSnapshotTool,
+)
 
 
 def create_default_tool_registry(mcp_manager=None) -> ToolRegistry:
@@ -84,6 +91,11 @@ def create_default_tool_registry(mcp_manager=None) -> ToolRegistry:
         SendMessageTool(),
         TeamCreateTool(),
         TeamDeleteTool(),
+        BrowserNavigateTool(),
+        BrowserScreenshotTool(),
+        BrowserClickTool(),
+        BrowserTypeTool(),
+        BrowserSnapshotTool(),
     ):
         registry.register(tool)
     if mcp_manager is not None:

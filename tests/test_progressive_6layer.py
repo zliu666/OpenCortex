@@ -105,7 +105,7 @@ def test_executor_cancel():
     assert tm.get_task(t.task_id).status == TaskStatus.CANCELLED
 
 def test_mcp_module_tools():
-    from opencortex.mcp_server import mcp_server
+    from opencortex.mcp import mcp_server
     tools = [t.name for t in mcp_server._tool_manager.list_tools()]
     assert "bash" in tools
     assert "read_file" in tools

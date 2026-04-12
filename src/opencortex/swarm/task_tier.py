@@ -1,4 +1,10 @@
-"""Task tier classification and model routing for cost-aware agent dispatch."""
+"""Task tier classification and model routing for cost-aware agent dispatch.
+
+Agent pool (4 agents across 2 providers):
+  - 智谱: glm-5.1 (规划/核心编码), glm-5-turbo (辅助编码)
+  - MiniMax: MiniMax-M2.7 x2 (轻量执行)
+When one provider rate-limits, tasks automatically fall back to the other.
+"""
 
 from __future__ import annotations
 
@@ -9,10 +15,10 @@ from enum import Enum
 class TaskTier(Enum):
     """Task priority tier determining model selection."""
 
-    SYSTEM = "system"        # Memory consolidation, health checks, summarization → glm-4.7-flash
-    UTILITY = "utility"      # Search, formatting, listing → glm-4.7-flash
-    CORE = "core"            # Coding, analysis, design → glm-5.1
     CRITICAL = "critical"    # Architecture decisions, security review → glm-5.1
+    CORE = "core"            # Coding, analysis, design → glm-5.1 or glm-5-turbo
+    SYSTEM = "system"        # Memory consolidation, health checks, summarization → MiniMax-M2.7
+    UTILITY = "utility"      # Search, formatting, listing → MiniMax-M2.7
 
 
 # Patterns that auto-classify into tiers (checked in priority order).
@@ -29,17 +35,32 @@ _CLASSIFY_RULES: list[tuple[re.Pattern[str], TaskTier]] = [
 
 
 class TaskTierRouter:
-    """Route tasks to appropriate models based on tier."""
+    """Route tasks to appropriate models based on tier.
 
+    4-agent pool strategy:
+      智谱 (glm-5.1 + glm-5-turbo): CORE and CRITICAL tasks
+      MiniMax (MiniMax-M2.7 x2): SYSTEM and UTILITY tasks
+    Fallback chain crosses providers to survive rate-limits.
+    """
+
+    # Primary model for each tier
     TIER_MODELS: dict[TaskTier, str] = {
-        TaskTier.SYSTEM: "glm-4.7-flash",
-        TaskTier.UTILITY: "glm-4.7-flash",
-        TaskTier.CORE: "glm-5.1",
         TaskTier.CRITICAL: "glm-5.1",
+        TaskTier.CORE: "glm-5.1",
+        TaskTier.SYSTEM: "MiniMax-M2.7",
+        TaskTier.UTILITY: "MiniMax-M2.7",
+    }
+
+    # Fallback models — cross-provider to survive rate-limits
+    TIER_FALLBACKS: dict[TaskTier, list[str]] = {
+        TaskTier.CRITICAL: ["glm-5.1", "glm-5-turbo", "MiniMax-M2.7"],
+        TaskTier.CORE: ["glm-5.1", "glm-5-turbo", "MiniMax-M2.7"],
+        TaskTier.SYSTEM: ["MiniMax-M2.7", "glm-5-turbo", "glm-5.1"],
+        TaskTier.UTILITY: ["MiniMax-M2.7", "glm-5-turbo", "glm-5.1"],
     }
 
     def route(self, tier: TaskTier) -> str:
-        """Return the model name for a given task tier."""
+        """Return the primary model name for a given task tier."""
         return self.TIER_MODELS[tier]
 
     def classify(self, task_description: str) -> TaskTier:
@@ -47,4 +68,4 @@ class TaskTierRouter:
         for pattern, tier in _CLASSIFY_RULES:
             if pattern.search(task_description):
                 return tier
-        return TaskTier.UTILITY  # safe default: cheap model
+        return TaskTier.UTILITY  # safe default: cheapest model

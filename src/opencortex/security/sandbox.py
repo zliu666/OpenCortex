@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from opencortex.config import Settings, load_settings
-from opencortex.platforms import get_platform, get_platform_capabilities
+from opencortex.utils.platforms import get_platform, get_platform_capabilities
 
 
 class SandboxUnavailableError(RuntimeError):

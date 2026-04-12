@@ -25,7 +25,7 @@ from opencortex.a2a.agent_card import DEFAULT_AGENT_CARD
 from opencortex.a2a.task_manager import TaskManager, TaskStatus
 from opencortex.a2a.context_layer import ContextLayer, summarize_tool_output
 from opencortex.a2a.executor import TaskExecutor
-from opencortex.mcp_server import create_mcp_app
+from opencortex.mcp import create_mcp_app
 
 from .models import (
     ErrorResponse,

@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from opencortex.platforms import PlatformName, get_platform
+from opencortex.utils.platforms import PlatformName, get_platform
 
 
 class SwarmLockError(RuntimeError):

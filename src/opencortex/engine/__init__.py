@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
+    from opencortex.engine.app_state import AppState
     from opencortex.engine.messages import (
         ConversationMessage,
         ImageBlock,
@@ -13,6 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover
         ToolUseBlock,
     )
     from opencortex.engine.query_engine import QueryEngine
+    from opencortex.engine.state_store import AppStateStore
     from opencortex.engine.stream_events import (
         AssistantTextDelta,
         AssistantTurnComplete,
@@ -21,6 +23,8 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 __all__ = [
+    "AppState",
+    "AppStateStore",
     "AssistantTextDelta",
     "AssistantTurnComplete",
     "ConversationMessage",
@@ -35,6 +39,16 @@ __all__ = [
 
 
 def __getattr__(name: str):
+    if name == "AppState":
+        from opencortex.engine.app_state import AppState
+
+        return AppState
+
+    if name == "AppStateStore":
+        from opencortex.engine.state_store import AppStateStore
+
+        return AppStateStore
+
     if name in {"ConversationMessage", "ImageBlock", "TextBlock", "ToolResultBlock", "ToolUseBlock"}:
         from opencortex.engine.messages import (
             ConversationMessage,

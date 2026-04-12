@@ -23,7 +23,7 @@ from opencortex.mcp.config import load_mcp_server_configs
 from opencortex.permissions import PermissionChecker
 from opencortex.plugins import load_plugins
 from opencortex.prompts import build_runtime_system_prompt
-from opencortex.state import AppState, AppStateStore
+from opencortex.engine import AppState, AppStateStore
 from opencortex.services.session_storage import save_session_snapshot
 from opencortex.tools import ToolRegistry, create_default_tool_registry
 from opencortex.keybindings import load_keybindings

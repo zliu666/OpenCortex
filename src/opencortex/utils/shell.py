@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from opencortex.config import Settings, load_settings
-from opencortex.platforms import PlatformName, get_platform
+from opencortex.utils.platforms import PlatformName, get_platform
 from opencortex.security.sandbox import wrap_command_for_sandbox
 
 

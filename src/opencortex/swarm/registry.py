@@ -7,7 +7,7 @@ import os
 import shutil
 from typing import TYPE_CHECKING, Any
 
-from opencortex.platforms import get_platform, get_platform_capabilities
+from opencortex.utils.platforms import get_platform, get_platform_capabilities
 from opencortex.swarm.spawn_utils import is_tmux_available
 from opencortex.swarm.types import BackendDetectionResult, BackendType, TeammateExecutor
 

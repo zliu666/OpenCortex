@@ -12,7 +12,7 @@ from opencortex.config.settings import load_settings
 from opencortex.engine.messages import ConversationMessage, TextBlock
 from opencortex.engine.query_engine import QueryEngine
 from opencortex.permissions import PermissionChecker
-from opencortex.state import AppState, AppStateStore
+from opencortex.engine import AppState, AppStateStore
 from opencortex.tools import create_default_tool_registry
 
 

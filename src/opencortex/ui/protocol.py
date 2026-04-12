@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from opencortex.state.app_state import AppState
+from opencortex.engine.app_state import AppState
 from opencortex.bridge.manager import BridgeSessionRecord
 from opencortex.mcp.types import McpConnectionStatus
 from opencortex.tasks.types import TaskRecord
