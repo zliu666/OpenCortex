@@ -7,6 +7,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from opencortex.security.dispatcher import SubAgentDispatcher, DispatchResult
+from opencortex.security.intent import IntentInjector
 from opencortex.security.privilege import ToolPrivilege, ToolPrivilegeAssignor
 from opencortex.security.sanitizer import ToolResultSanitizer
 from opencortex.security.tool_classifier import ToolCategory, ToolClassifier
@@ -26,6 +28,7 @@ class SecurityCheckResult:
     sanitized_output: str | None = None  # set after tool execution if sanitizer runs
     privilege: ToolPrivilege | None = None
     category: ToolCategory | None = None
+    stripped_args: dict | None = None  # tool args with intent removed
 
 
 class SecurityLayer:
@@ -43,11 +46,15 @@ class SecurityLayer:
         validator_enabled: bool = True,
         sanitizer_enabled: bool = True,
         privilege_assignor_enabled: bool = True,
+        dispatcher_enabled: bool = True,
+        max_dispatch_depth: int = 5,
     ) -> None:
         self._classifier = ToolClassifier()
         self._validator = ToolCallValidator(api_client, model) if validator_enabled else None
         self._sanitizer = ToolResultSanitizer(api_client, model) if sanitizer_enabled else None
         self._privilege_assignor = ToolPrivilegeAssignor(api_client, model) if privilege_assignor_enabled else None
+        self._dispatcher = SubAgentDispatcher(api_client, model, max_depth=max_dispatch_depth) if dispatcher_enabled else None
+        self._intent_injector = IntentInjector()
 
     async def check_tool_call(
         self,
@@ -100,3 +107,36 @@ class SecurityLayer:
         if self._sanitizer is None:
             return tool_result_text
         return await self._sanitizer.sanitize(tool_result_text)
+
+    def strip_intent_from_args(self, tool_args: dict) -> dict:
+        """Remove intent parameter from tool args before execution."""
+        return self._intent_injector.strip_intent_from_args(tool_args)
+
+    async def dispatch_external_result(
+        self,
+        tool_name: str,
+        tool_result: str,
+        intent: str | None = None,
+    ) -> DispatchResult:
+        """Dispatch EXTERNAL tool result to sub-agent for isolated processing."""
+        if self._dispatcher is None:
+            log.warning("dispatcher not enabled, returning raw result")
+            return DispatchResult(
+                success=True,
+                content=tool_result,
+                retries_used=0,
+            )
+        return await self._dispatcher.dispatch(tool_name, tool_result, intent)
+
+    def truncate_command_result(self, tool_result: str, tool_name: str) -> str:
+        """Truncate COMMAND tool results to confirmation only.
+
+        Exception: if tool name contains 'get', return the full result.
+        """
+        if 'get' in tool_name.lower():
+            return tool_result
+        return f"Tool '{tool_name}' successfully executed."
+
+    def should_dispatch(self, category: ToolCategory) -> bool:
+        """Return True if this category should be dispatched to sub-agent."""
+        return category == ToolCategory.EXTERNAL and self._dispatcher is not None
