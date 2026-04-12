@@ -4,6 +4,8 @@ Faithfully translated from Claude Code's compaction system:
 - Microcompact: clear old tool result content to reduce token count cheaply
 - Full compact: call the LLM to produce a structured summary of older messages
 - Auto-compact: trigger compaction automatically when token count exceeds threshold
+
+The compact operation can optionally use an auxiliary (cheaper) model if configured.
 """
 
 from __future__ import annotations
@@ -307,6 +309,9 @@ async def compact_conversation(
     3. Call the LLM with the compact prompt to get a structured summary.
     4. Replace older messages with the summary + preserved recent messages.
 
+    This function will use an auxiliary (cheaper) model if configured via
+    ``set_auxiliary_client()``. Otherwise it falls back to the main ``api_client``.
+
     Args:
         messages: The full conversation history.
         api_client: An ``AnthropicApiClient`` or compatible for the summary call.
@@ -320,6 +325,7 @@ async def compact_conversation(
         The new compacted message list.
     """
     from opencortex.api.client import ApiMessageRequest, ApiMessageCompleteEvent
+    from opencortex.api.auxiliary import get_auxiliary_client
 
     if len(messages) <= preserve_recent:
         return list(messages)
@@ -338,18 +344,44 @@ async def compact_conversation(
     compact_prompt = get_compact_prompt(custom_instructions)
     compact_messages = list(older) + [ConversationMessage.from_user_text(compact_prompt)]
 
+    # Convert ConversationMessage to dict format for auxiliary client
+    def _to_message_dict(msg: ConversationMessage) -> dict[str, str]:
+        text_blocks = []
+        for block in msg.content:
+            if isinstance(block, TextBlock):
+                text_blocks.append(block.text)
+        return {"role": msg.role, "content": "\n".join(text_blocks)}
+
     summary_text = ""
-    async for event in api_client.stream_message(
-        ApiMessageRequest(
-            model=model,
-            messages=compact_messages,
-            system_prompt=system_prompt or "You are a conversation summarizer.",
-            max_tokens=MAX_OUTPUT_TOKENS_FOR_SUMMARY,
-            tools=[],  # no tools for compact call
-        )
-    ):
-        if isinstance(event, ApiMessageCompleteEvent):
-            summary_text = event.message.text
+    aux_client = get_auxiliary_client()
+
+    if aux_client.available:
+        # Use auxiliary (cheaper) model for summarization
+        log.info("Using auxiliary model for compaction")
+        try:
+            compact_msg_dicts = [_to_message_dict(m) for m in compact_messages]
+            summary_text = await aux_client.complete(
+                compact_msg_dicts,
+                system_prompt=system_prompt or "You are a conversation summarizer.",
+                max_tokens=MAX_OUTPUT_TOKENS_FOR_SUMMARY,
+            )
+        except Exception as exc:
+            log.warning("Auxiliary model failed, falling back to main client: %s", exc)
+            summary_text = ""  # Will trigger fallback below
+
+    # Fallback to main client if auxiliary not available or failed
+    if not summary_text:
+        async for event in api_client.stream_message(
+            ApiMessageRequest(
+                model=model,
+                messages=compact_messages,
+                system_prompt=system_prompt or "You are a conversation summarizer.",
+                max_tokens=MAX_OUTPUT_TOKENS_FOR_SUMMARY,
+                tools=[],  # no tools for compact call
+            )
+        ):
+            if isinstance(event, ApiMessageCompleteEvent):
+                summary_text = event.message.text
 
     if not summary_text:
         log.warning("Compact summary was empty — returning original messages")
