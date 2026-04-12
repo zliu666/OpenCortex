@@ -27,6 +27,7 @@ from opencortex.engine.stream_events import (
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
+from opencortex.engine.recovery import RecoveryAction, RecoveryChain, classify_api_error
 from opencortex.hooks import HookEvent, HookExecutor
 from opencortex.permissions.checker import PermissionChecker
 from opencortex.tools.base import ToolExecutionContext
@@ -84,6 +85,7 @@ async def run_query(
     )
 
     compact_state = AutoCompactState()
+    recovery = RecoveryChain(max_attempts=3)
 
     turn_count = 0
     judge_extensions = 0
@@ -103,38 +105,50 @@ async def run_query(
         final_message: ConversationMessage | None = None
         usage = UsageSnapshot()
 
-        try:
-            async for event in context.api_client.stream_message(
-                ApiMessageRequest(
-                    model=context.model,
-                    messages=messages,
-                    system_prompt=context.system_prompt,
-                    max_tokens=context.max_tokens,
-                    tools=context.tool_registry.to_api_schema(),
-                )
-            ):
-                if isinstance(event, ApiTextDeltaEvent):
-                    yield AssistantTextDelta(text=event.text), None
-                    continue
-                if isinstance(event, ApiRetryEvent):
-                    yield StatusEvent(
-                        message=(
-                            f"Request failed; retrying in {event.delay_seconds:.1f}s "
-                            f"(attempt {event.attempt + 1} of {event.max_attempts}): {event.message}"
-                        )
-                    ), None
-                    continue
+        # --- API call with recovery loop ---
+        while True:
+            try:
+                async for event in context.api_client.stream_message(
+                    ApiMessageRequest(
+                        model=context.model,
+                        messages=messages,
+                        system_prompt=context.system_prompt,
+                        max_tokens=context.max_tokens,
+                        tools=context.tool_registry.to_api_schema(),
+                    )
+                ):
+                    if isinstance(event, ApiTextDeltaEvent):
+                        yield AssistantTextDelta(text=event.text), None
+                        continue
+                    if isinstance(event, ApiRetryEvent):
+                        yield StatusEvent(
+                            message=(
+                                f"Request failed; retrying in {event.delay_seconds:.1f}s "
+                                f"(attempt {event.attempt + 1} of {event.max_attempts}): {event.message}"
+                            )
+                        ), None
+                        continue
 
-                if isinstance(event, ApiMessageCompleteEvent):
-                    final_message = event.message
-                    usage = event.usage
-        except Exception as exc:
-            error_msg = str(exc)
-            if "connect" in error_msg.lower() or "timeout" in error_msg.lower() or "network" in error_msg.lower():
-                yield ErrorEvent(message=f"Network error: {error_msg}. Check your internet connection and try again."), None
-            else:
-                yield ErrorEvent(message=f"API error: {error_msg}"), None
-            return
+                    if isinstance(event, ApiMessageCompleteEvent):
+                        final_message = event.message
+                        usage = event.usage
+                # Success — reset recovery counter and break out of recovery loop
+                recovery.reset()
+                break
+            except Exception as exc:
+                classified = classify_api_error(exc)
+                action = await recovery.handle(classified)
+                if action == RecoveryAction.ABORT:
+                    yield ErrorEvent(message=f"API error: {classified.message}"), None
+                    return
+                # Recoverable — notify user and retry
+                yield StatusEvent(
+                    message=(
+                        f"Recovering from {classified.reason.value}: "
+                        f"{action.value} (attempt {recovery._attempts}/{recovery._max_attempts})"
+                    )
+                ), None
+                continue
 
         if final_message is None:
             raise RuntimeError("Model stream finished without a final message")
