@@ -177,6 +177,26 @@ async def build_runtime(
         hook_executor=hook_executor,
         tool_metadata={"mcp_manager": mcp_manager, "bridge_manager": bridge_manager},
     )
+    # ── Security Layer (auto-enable when settings say so) ──
+    if settings.security.enabled:
+        from opencortex.security.security_layer import SecurityLayer
+        sec_model = settings.security.security_model or settings.model
+        security_layer = SecurityLayer(
+            resolved_api_client, sec_model,
+            validator_enabled=settings.security.validator_enabled,
+            sanitizer_enabled=settings.security.sanitizer_enabled,
+            privilege_assignor_enabled=settings.security.privilege_assignor_enabled,
+        )
+        engine.set_security_layer(security_layer)
+
+    # ── Auxiliary client (cheap model for background tasks) ──
+    if settings.auxiliary.enabled and settings.auxiliary.providers:
+        from opencortex.api.auxiliary import AuxiliaryClient, set_auxiliary_client
+        aux_client = AuxiliaryClient.from_config(
+            {"providers": [p.model_dump() for p in settings.auxiliary.providers]}
+        )
+        set_auxiliary_client(aux_client)
+
     # Restore messages from a saved session if provided
     if restore_messages:
         restored = [

@@ -222,7 +222,7 @@ class TestSecurityLayer:
 class TestSecuritySettings:
     def test_defaults(self):
         s = SecuritySettings()
-        assert s.enabled is False
+        assert s.enabled is True  # security default ON as of 2026-04-12
         assert s.security_model == "glm-5.1"
         assert s.validator_enabled is True
         assert s.sanitizer_enabled is True

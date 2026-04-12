@@ -63,7 +63,7 @@ class SandboxSettings(BaseModel):
 
 class SecuritySettings(BaseModel):
     """AgentSys security layer configuration."""
-    enabled: bool = False  # master switch — default OFF
+    enabled: bool = True  # master switch — default ON
     validator_enabled: bool = True
     sanitizer_enabled: bool = True
     privilege_assignor_enabled: bool = True
@@ -100,6 +100,20 @@ class MemorySettings(BaseModel):
     max_entrypoint_lines: int = 200
 
 
+class AuxiliaryProviderConfig(BaseModel):
+    """Single auxiliary model provider."""
+    name: str = ""
+    model: str = ""
+    api_key: str = ""
+    api_base: str = ""
+
+
+class AuxiliarySettings(BaseModel):
+    """Auxiliary (cheap) model configuration for background tasks."""
+    enabled: bool = True
+    providers: list[AuxiliaryProviderConfig] = Field(default_factory=list)
+
+
 class Settings(BaseModel):
     """Main settings model for OpenCortex."""
 
@@ -120,6 +134,7 @@ class Settings(BaseModel):
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict)
     sandbox: SandboxSettings = Field(default_factory=SandboxSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
+    auxiliary: AuxiliarySettings = Field(default_factory=AuxiliarySettings)
     dual_model: DualModelSettings = Field(default_factory=DualModelSettings)
 
     # UI
