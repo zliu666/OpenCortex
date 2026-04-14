@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -86,6 +87,15 @@ async def run_query(
 
     compact_state = AutoCompactState()
     recovery = RecoveryChain(max_attempts=3)
+
+    # Extract user query from first user message for security layer
+    context._user_query = ""
+    for _msg in messages:
+        if hasattr(_msg, 'role') and _msg.role == 'user':
+            _c = getattr(_msg, 'content', '')
+            if isinstance(_c, str) and _c:
+                context._user_query = _c[:500]
+                break
 
     turn_count = 0
     judge_extensions = 0
@@ -180,8 +190,17 @@ async def run_query(
             async def _run(tc):
                 return await _execute_tool_call(context, tc.name, tc.id, tc.input)
 
-            results = await asyncio.gather(*[_run(tc) for tc in tool_calls])
-            tool_results = list(results)
+            results = await asyncio.gather(*[_run(tc) for tc in tool_calls], return_exceptions=True)
+            tool_results = []
+            for r in results:
+                if isinstance(r, Exception):
+                    tool_results.append(ToolResultBlock(
+                        tool_use_id="error",
+                        content=f"Tool execution failed: {r}",
+                        is_error=True,
+                    ))
+                else:
+                    tool_results.append(r)
 
             for tc, result in zip(tool_calls, tool_results):
                 yield ToolExecutionCompleted(
@@ -200,7 +219,11 @@ async def run_query(
                     _MAX_JUDGE_EXTENSIONS,
                 )
                 raise MaxTurnsExceeded(context.max_turns)
-            should_continue = await _judge_should_extend(context, messages, turn_count)
+            try:
+                should_continue = await _judge_should_extend(context, messages, turn_count)
+            except Exception:
+                log.warning("[JudgeAgent] _judge_should_extend raised, stopping.", exc_info=True)
+                should_continue = False
             if should_continue:
                 judge_extensions += 1
                 turn_count = 0  # reset counter, continue in the same loop
@@ -286,8 +309,7 @@ async def _execute_tool_call(
         from opencortex.security.security_layer import SecurityLayer
         assert isinstance(security_layer, SecurityLayer)
         tool_desc = getattr(tool, "description", "") or ""
-        # Get user query from first user message
-        user_query = ""
+        user_query = getattr(context, '_user_query', '') or ""
         # call_history placeholder — could be derived from messages in future
         sec_result = await security_layer.check_tool_call(
             tool_name=tool_name,
@@ -450,7 +472,7 @@ async def _judge_should_extend(
         final_text = ""
         async for event in judge_api.stream_message(
             ApiMessageRequest(
-                model="glm-5-turbo",  # Judge uses strongest model
+                model=os.environ.get("OPENHARNESS_JUDGE_MODEL", "glm-5-turbo"),  # Judge model (configurable)
                 messages=[{"role": "user", "content": judge_prompt}],
                 system_prompt=_JUDGE_SYSTEM_PROMPT,
                 max_tokens=10,

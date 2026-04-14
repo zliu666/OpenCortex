@@ -171,7 +171,7 @@ async def execute_job(job: dict[str, Any]) -> dict[str, Any]:
             process.kill()
             await process.wait()
         except Exception:
-            pass
+            logger.error("Failed to kill cron process for %s", name, exc_info=True)
         entry = {
             "name": name,
             "command": command,

@@ -273,7 +273,7 @@ class TestBuildCardElements:
     def test_table_parsed(self):
         ch = _make_channel()
         elements = ch._build_card_elements("| a | b |\n|---|---|\n| 1 | 2 |")
-        assert any(el.get("tag") == "table" for el in elements)
+        assert any(el.get("tag") == "markdown" and "| a | b |" in el.get("content", "") for el in elements)
 
     def test_headings_split(self):
         ch = _make_channel()
@@ -538,8 +538,8 @@ class TestParseMdTable:
         ch = _make_channel()
         result = FeishuChannel._parse_md_table("| a | b |\n|---|---|\n| 1 | 2 |")
         assert result is not None
-        assert result["tag"] == "table"
-        assert len(result["rows"]) == 1
+        assert result["tag"] == "markdown"
+        assert "| a | b |" in result["content"]
 
     def test_too_short(self):
         assert FeishuChannel._parse_md_table("| a |") is None

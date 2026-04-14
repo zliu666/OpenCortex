@@ -168,7 +168,13 @@ async def launch_react_tui(
         stdout=None,
         stderr=None,
     )
-    return await process.wait()
+    from opencortex.process_registry import register_pid
+    register_pid(process.pid)
+    try:
+        return await process.wait()
+    finally:
+        from opencortex.process_registry import unregister_pid
+        unregister_pid(process.pid)
 
 
 __all__ = ["build_backend_command", "get_frontend_dir", "launch_react_tui"]

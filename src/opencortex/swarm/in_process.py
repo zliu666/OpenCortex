@@ -310,7 +310,7 @@ async def _drain_mailbox(
         try:
             await mailbox.mark_read(msg.id)
         except Exception:
-            pass
+            logger.warning("Failed to mark message %s as read", msg.id, exc_info=True)
 
         if msg.type == "shutdown":
             logger.debug("[in_process] %s: received shutdown message", ctx.agent_id)

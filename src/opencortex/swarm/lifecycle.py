@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -49,7 +50,7 @@ class AgentLifecycleManager:
 
     def __init__(self) -> None:
         self._agents: dict[str, AgentHealth] = {}
-        self._events: list[AgentEvent] = []
+        self._events: deque[AgentEvent] = deque(maxlen=10000)
         self._start_times: dict[str, float] = {}
 
     def register_agent(self, agent_id: str) -> None:

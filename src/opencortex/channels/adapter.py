@@ -95,6 +95,21 @@ class ChannelBridge:
         """Process one inbound message and publish the reply."""
         logger.debug("ChannelBridge received from %s/%s", msg.channel, msg.chat_id)
 
+        # Rebuild system prompt with memory and latest user prompt so that
+        # relevant memories are surfaced for each incoming message.
+        try:
+            from opencortex.config import load_settings
+            from opencortex.prompts import build_runtime_system_prompt
+            settings = load_settings()
+            new_prompt = build_runtime_system_prompt(
+                settings,
+                cwd=self._engine._cwd,
+                latest_user_prompt=msg.content,
+            )
+            self._engine.set_system_prompt(new_prompt)
+        except Exception:
+            logger.debug("ChannelBridge: failed to rebuild system prompt, using existing", exc_info=True)
+
         reply_parts: list[str] = []
         try:
             async for event in self._engine.submit_message(msg.content):
@@ -103,13 +118,13 @@ class ChannelBridge:
                 elif isinstance(event, AssistantTurnComplete):
                     # Turn is done; we'll send the accumulated text below
                     pass
-        except Exception:
+        except Exception as e:
             logger.exception(
                 "ChannelBridge: engine error for message from %s/%s",
                 msg.channel,
                 msg.chat_id,
             )
-            reply_parts = ["[Error: failed to process your message]"]
+            reply_parts = [f"[Error: failed to process your message] {type(e).__name__}: {e}"]
 
         reply_text = "".join(reply_parts).strip()
         if not reply_text:

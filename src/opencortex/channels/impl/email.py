@@ -319,7 +319,7 @@ class EmailChannel(BaseChannel):
             try:
                 client.logout()
             except Exception:
-                pass
+                logger.warning("Failed to logout IMAP client", exc_info=True)
 
         return messages
 

@@ -14,6 +14,7 @@ from opencortex.memory.decay import MemoryDecayManager
 from opencortex.memory.dream import MemoryDream
 from opencortex.memory.tiered_store import (
     MemoryTier,
+    SimpleMemSettings,
     TierConfig,
     TieredMemoryConfig,
     TieredMemoryStore,
@@ -205,6 +206,99 @@ class TestStats:
         assert stats[MemoryTier.CORE]["config"]["auto_load"] is True
         assert stats[MemoryTier.PROJECT]["config"]["trigger_load"] is True
         assert stats[MemoryTier.ARCHIVE]["config"]["search_only"] is True
+
+
+# ======================================================================
+# SimpleMem integration tests
+# ======================================================================
+
+
+class TestNoveltyFilterIntegration:
+    def test_duplicate_filtered_when_enabled(self, db_path: Path):
+        cfg = TieredMemoryConfig(
+            tiers=TierConfig.defaults(),
+            simplemem=SimpleMemSettings(novelty_filter=True),
+        )
+        store = TieredMemoryStore(config=cfg, db_path=db_path / "nf.db")
+        rid1 = store.add_entry(MemoryTier.CORE, "hello world unique text")
+        rid2 = store.add_entry(MemoryTier.CORE, "hello world unique text")
+        assert rid1 is not None
+        assert rid2 is None  # filtered as duplicate
+        store.close()
+
+    def test_novel_entries_pass(self, db_path: Path):
+        cfg = TieredMemoryConfig(
+            tiers=TierConfig.defaults(),
+            simplemem=SimpleMemSettings(novelty_filter=True),
+        )
+        store = TieredMemoryStore(config=cfg, db_path=db_path / "nf2.db")
+        rid1 = store.add_entry(MemoryTier.CORE, "alpha beta gamma")
+        rid2 = store.add_entry(MemoryTier.CORE, "completely different delta epsilon")
+        assert rid1 is not None
+        assert rid2 is not None
+        store.close()
+
+    def test_filter_off_by_default(self, store: TieredMemoryStore):
+        rid1 = store.add_entry(MemoryTier.CORE, "repeat text")
+        rid2 = store.add_entry(MemoryTier.CORE, "repeat text")
+        assert rid1 is not None
+        assert rid2 is not None  # not filtered
+
+
+class TestHybridSearchIntegration:
+    def test_hybrid_search_with_embedding(self, db_path: Path):
+        import numpy as np
+
+        cfg = TieredMemoryConfig(
+            tiers=TierConfig.defaults(),
+            simplemem=SimpleMemSettings(vector_search=True),
+        )
+        store = TieredMemoryStore(config=cfg, db_path=db_path / "hybrid.db")
+
+        def _unit(dim, *vals):
+            v = np.zeros(dim, dtype=np.float32)
+            for i, val in enumerate(vals):
+                v[i] = val
+            n = np.linalg.norm(v)
+            return v / n if n > 0 else v
+
+        store.add_entry(MemoryTier.CORE, "python programming", embedding=_unit(8, 1, 0))
+        store.add_entry(MemoryTier.USER, "rust programming", embedding=_unit(8, 0, 1))
+
+        results = store.search("programming", query_embedding=_unit(8, 1, 0))
+        ids = [r["id"] for r in results]
+        assert 1 in ids  # dense match
+        store.close()
+
+
+class TestPyramidRetrievalIntegration:
+    def test_pyramid_enabled_load_context(self, db_path: Path):
+        cfg = TieredMemoryConfig(
+            tiers=TierConfig.defaults(),
+            simplemem=SimpleMemSettings(pyramid_retrieval=True, pyramid_budget=10000),
+        )
+        store = TieredMemoryStore(config=cfg, db_path=db_path / "pyramid.db")
+        store.add_entry(MemoryTier.CORE, "I am a helpful assistant")
+        store.add_entry(MemoryTier.USER, "user prefers dark mode")
+
+        ctx = store.load_context()
+        assert "helpful assistant" in ctx
+        assert "dark mode" in ctx
+        store.close()
+
+    def test_pyramid_budget_limits_output(self, db_path: Path):
+        cfg = TieredMemoryConfig(
+            tiers=TierConfig.defaults(),
+            simplemem=SimpleMemSettings(pyramid_retrieval=True, pyramid_budget=20),
+        )
+        store = TieredMemoryStore(config=cfg, db_path=db_path / "pyramid2.db")
+        for i in range(20):
+            store.add_entry(MemoryTier.CORE, f"memory entry number {i} with some content")
+
+        ctx = store.load_context()
+        lines = [l for l in ctx.split("\n") if l.strip()]
+        assert len(lines) < 20
+        store.close()
 
 
 # ======================================================================

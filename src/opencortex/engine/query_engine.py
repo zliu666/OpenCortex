@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
-from typing import AsyncIterator
+from typing import AsyncIterator, Any
 
 from opencortex.api.client import SupportsStreamingMessages
 from opencortex.engine.cost_tracker import CostTracker
@@ -13,6 +14,8 @@ from opencortex.engine.stream_events import StreamEvent
 from opencortex.hooks import HookExecutor
 from opencortex.permissions.checker import PermissionChecker
 from opencortex.tools.base import ToolRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class QueryEngine:
@@ -33,6 +36,7 @@ class QueryEngine:
         ask_user_prompt: AskUserPrompt | None = None,
         hook_executor: HookExecutor | None = None,
         tool_metadata: dict[str, object] | None = None,
+        memory_dir: Path | None = None,
     ) -> None:
         self._api_client = api_client
         self._tool_registry = tool_registry
@@ -50,6 +54,17 @@ class QueryEngine:
         self._cost_tracker = CostTracker()
         self._security_layer: object | None = None
         self._provider_key: str = "primary"  # for per-model cost tracking
+
+        # Memory pipeline integration
+        self._memory_pipeline: Any | None = None
+        self._turn_count: int = 0
+        if memory_dir is not None:
+            try:
+                from opencortex.memory.pipeline import MemoryPipeline
+                self._memory_pipeline = MemoryPipeline(memory_dir)
+                logger.info("Memory pipeline initialized: %s", memory_dir)
+            except Exception as exc:
+                logger.warning("Failed to init memory pipeline: %s", exc)
 
     @property
     def messages(self) -> list[ConversationMessage]:
@@ -122,13 +137,24 @@ class QueryEngine:
             else ConversationMessage.from_user_text(prompt)
         )
         self._messages.append(user_message)
+        self._turn_count += 1
+
+        # Memory: prefetch + inject into system prompt
+        effective_prompt = self._system_prompt
+        if self._memory_pipeline is not None:
+            try:
+                await self._memory_pipeline.prefetch()
+                effective_prompt = self._memory_pipeline.inject_into(self._system_prompt)
+            except Exception as exc:
+                logger.warning("Memory prefetch/inject failed: %s", exc)
+
         context = QueryContext(
             api_client=self._api_client,
             tool_registry=self._tool_registry,
             permission_checker=self._permission_checker,
             cwd=self._cwd,
             model=self._model,
-            system_prompt=self._system_prompt,
+            system_prompt=effective_prompt,
             max_tokens=self._max_tokens,
             max_turns=self._max_turns,
             permission_prompt=self._permission_prompt,
@@ -141,6 +167,18 @@ class QueryEngine:
             if usage is not None:
                 self._cost_tracker.add(usage, provider_key=self._provider_key)
             yield event
+
+        # Memory: post-process after query completes
+        if self._memory_pipeline is not None:
+            try:
+                raw_msgs = [
+                    {"role": m.role, "content": str(m.content)}
+                    for m in self._messages
+                    if m.role in ("user", "assistant")
+                ]
+                await self._memory_pipeline.post_process(raw_msgs, self._turn_count)
+            except Exception as exc:
+                logger.warning("Memory post_process failed: %s", exc)
 
     async def continue_pending(self, *, max_turns: int | None = None) -> AsyncIterator[StreamEvent]:
         """Continue an interrupted tool loop without appending a new user message."""

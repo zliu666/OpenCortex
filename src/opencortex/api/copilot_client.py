@@ -12,6 +12,7 @@ is required.
 from __future__ import annotations
 
 import logging
+import os
 from typing import AsyncIterator
 
 from openai import AsyncOpenAI
@@ -37,7 +38,7 @@ _VERSION = "0.1.0"  # OpenCortex version for User-Agent
 
 # Default model for Copilot requests when the configured model is not
 # available in the Copilot model catalog.
-COPILOT_DEFAULT_MODEL = "gpt-4o"
+COPILOT_DEFAULT_MODEL = os.environ.get("OPENHARNESS_COPILOT_MODEL", "gpt-4o")
 
 
 # ---------------------------------------------------------------------------

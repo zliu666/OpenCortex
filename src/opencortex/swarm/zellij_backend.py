@@ -80,7 +80,7 @@ def is_inside_zellij() -> bool:
             else:
                 break
     except Exception:
-        pass
+        logger.warning("Failed to check zellij session", exc_info=True)
     return False
 
 

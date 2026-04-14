@@ -4,23 +4,31 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from opencortex.memory.paths import get_project_memory_dir
+from opencortex.memory.paths import get_global_memory_dir, get_project_memory_dir, _is_temp_cwd
 from opencortex.memory.types import MemoryHeader
 
 
 def scan_memory_files(cwd: str | Path, *, max_files: int = 50) -> list[MemoryHeader]:
-    """Return memory headers sorted by newest first."""
-    memory_dir = get_project_memory_dir(cwd)
+    """Return memory headers from global + project dirs, sorted by newest first."""
+    dirs = [get_global_memory_dir()]
+    if not _is_temp_cwd(cwd):
+        dirs.append(get_project_memory_dir(cwd))
+
+    seen_names: set[str] = set()
     headers: list[MemoryHeader] = []
-    for path in memory_dir.glob("*.md"):
-        if path.name == "MEMORY.md":
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        header = _parse_memory_file(path, text)
-        headers.append(header)
+    for memory_dir in dirs:
+        for path in memory_dir.glob("*.md"):
+            if path.name == "MEMORY.md":
+                continue
+            if path.name in seen_names:
+                continue
+            seen_names.add(path.name)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            header = _parse_memory_file(path, text)
+            headers.append(header)
     headers.sort(key=lambda item: item.modified_at, reverse=True)
     return headers[:max_files]
 

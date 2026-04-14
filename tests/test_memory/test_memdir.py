@@ -35,7 +35,7 @@ def test_load_memory_prompt_includes_entrypoint(tmp_path: Path, monkeypatch):
     prompt = load_memory_prompt(project_dir)
 
     assert prompt is not None
-    assert "Persistent memory directory" in prompt
+    assert "Global memory directory" in prompt
     assert "Testing" in prompt
 
 

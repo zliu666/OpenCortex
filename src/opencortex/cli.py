@@ -738,7 +738,8 @@ def _login_provider(provider: str) -> None:
         try:
             manager.store_credential(provider, "api_key", key)
         except Exception:
-            pass
+            import logging
+            logging.getLogger(__name__).warning("Failed to store credential with manager", exc_info=True)
         print(f"{label} API key saved.", flush=True)
         return
 
@@ -1204,6 +1205,7 @@ def serve_cmd(
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
+
     version: bool = typer.Option(
         False,
         "--version",
@@ -1467,6 +1469,9 @@ def main(
             )
         )
         return
+
+    from opencortex.process_registry import setup_cleanup_handlers
+    setup_cleanup_handlers()
 
     if print_mode is not None:
         prompt = print_mode.strip()

@@ -49,7 +49,7 @@ def _detect_zellij() -> bool:
                 logger.debug("[BackendRegistry] _detect_zellij: parent is zellij via ps tree")
                 return True
     except Exception:
-        pass
+        logger.debug("[BackendRegistry] _detect_zellij: ps check failed", exc_info=True)
     logger.debug("[BackendRegistry] _detect_zellij: not inside zellij")
     return False
 

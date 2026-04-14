@@ -382,22 +382,11 @@ class FeishuChannel(BaseChannel):
 
     @staticmethod
     def _parse_md_table(table_text: str) -> dict | None:
-        """Parse a markdown table into a Feishu table element."""
+        """Return markdown table as a markdown element (Feishu cards don't support tag=table)."""
         lines = [_line.strip() for _line in table_text.strip().split("\n") if _line.strip()]
         if len(lines) < 3:
             return None
-        def split(_line: str) -> list[str]:
-            return [c.strip() for c in _line.strip("|").split("|")]
-        headers = split(lines[0])
-        rows = [split(_line) for _line in lines[2:]]
-        columns = [{"tag": "column", "name": f"c{i}", "display_name": h, "width": "auto"}
-                   for i, h in enumerate(headers)]
-        return {
-            "tag": "table",
-            "page_size": len(rows) + 1,
-            "columns": columns,
-            "rows": [{f"c{i}": r[i] if i < len(r) else "" for i in range(len(headers))} for r in rows],
-        }
+        return {"tag": "markdown", "content": table_text}
 
     def _build_card_elements(self, content: str) -> list[dict]:
         """Split content into div/markdown + table elements for Feishu card."""

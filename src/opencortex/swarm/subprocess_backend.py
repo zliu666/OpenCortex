@@ -249,7 +249,7 @@ class SubprocessBackend:
             if code == 0 and git_root:
                 return Path(git_root).resolve()
         except Exception:
-            pass
+            logger.warning("Failed to detect git root for %s", path, exc_info=True)
         return None
 
     async def _cleanup_worktree(self, agent_id: str, worktree_slug: str) -> None:

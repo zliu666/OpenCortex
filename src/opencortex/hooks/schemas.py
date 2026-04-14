@@ -7,6 +7,17 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+from pydantic import BaseModel, Field, field_validator
+import re
+
+
+_DANGEROUS_CMD_PATTERNS = re.compile(
+    r"\b(rm\s+-rf|rm\s+-r\s+/|curl.*\|\s*(sh|bash)|wget.*\|\s*(sh|bash)|"
+    r"python\s+-c\s+['\"]|perl\s+-e\s+['\"]|eval\s+['\"]|"
+    r"chmod\s+777|mkfs|dd\s+if=|>:\s*/dev/|shutdown|reboot)"
+)
+
+
 class CommandHookDefinition(BaseModel):
     """A hook that executes a shell command."""
 
@@ -15,6 +26,13 @@ class CommandHookDefinition(BaseModel):
     timeout_seconds: int = Field(default=30, ge=1, le=600)
     matcher: str | None = None
     block_on_failure: bool = False
+
+    @field_validator("command")
+    @classmethod
+    def _validate_command(cls, v: str) -> str:
+        if _DANGEROUS_CMD_PATTERNS.search(v):
+            raise ValueError(f"Dangerous command pattern detected: {v}")
+        return v
 
 
 class PromptHookDefinition(BaseModel):

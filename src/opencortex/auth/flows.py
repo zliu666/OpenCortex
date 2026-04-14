@@ -77,17 +77,20 @@ class DeviceCodeFlow(AuthFlow):
     def _try_open_browser(url: str) -> bool:
         """Attempt to open *url* in the default browser; return True if likely succeeded."""
         try:
+            from opencortex.process_registry import register_pid
             plat = platform.system()
             if plat == "Darwin":
-                subprocess.Popen(["open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                proc = subprocess.Popen(["open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                register_pid(proc.pid)
                 return True
             if plat == "Windows":
-                subprocess.Popen(
+                proc = subprocess.Popen(
                     ["start", "", url],
                     shell=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
+                register_pid(proc.pid)
                 return True
             # Linux / WSL
             proc = subprocess.Popen(
@@ -95,6 +98,7 @@ class DeviceCodeFlow(AuthFlow):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            register_pid(proc.pid)
             try:
                 proc.wait(timeout=2)
                 return proc.returncode == 0

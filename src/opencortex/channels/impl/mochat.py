@@ -284,8 +284,7 @@ class MochatChannel(BaseChannel):
             try:
                 await self._socket.disconnect()
             except Exception:
-                pass
-            self._socket = None
+                logger.warning("Failed to disconnect mochat websocket", exc_info=True)
 
         if self._cursor_save_task:
             self._cursor_save_task.cancel()
@@ -413,9 +412,7 @@ class MochatChannel(BaseChannel):
             try:
                 await client.disconnect()
             except Exception:
-                pass
-            self._socket = None
-            return False
+                logger.warning("Failed to disconnect mochat socket", exc_info=True)
 
     def _build_notify_handler(self, event_name: str):
         async def handler(payload: Any) -> None:

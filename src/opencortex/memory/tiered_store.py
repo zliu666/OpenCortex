@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS tiered_memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tier TEXT NOT NULL,
     content TEXT NOT NULL,
+    summary TEXT DEFAULT '',
+    raw_content_path TEXT DEFAULT '',
     tags TEXT DEFAULT '[]',
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL
@@ -83,8 +85,22 @@ class TierConfig:
 
 
 @dataclass
+class SimpleMemSettings:
+    """Feature flags for SimpleMem upgrades. All default to False (off)."""
+
+    novelty_filter: bool = False
+    vector_search: bool = False
+    pyramid_retrieval: bool = False
+    novelty_threshold: float = 0.8
+    novelty_window: int = 50
+    pyramid_budget: int = 6000
+    pyramid_similarity_threshold: float = 0.4
+
+
+@dataclass
 class TieredMemoryConfig:
     tiers: dict[MemoryTier, TierConfig] = field(default_factory=TierConfig.defaults)
+    simplemem: SimpleMemSettings = field(default_factory=SimpleMemSettings)
 
 
 class TieredMemoryStore:
@@ -100,6 +116,34 @@ class TieredMemoryStore:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: sqlite3.Connection | None = None
 
+        # --- SimpleMem subsystems (lazy-initialised) ---
+        self._novelty_filter: NoveltyFilter | None = None
+        self._vector_store: VectorStore | None = None  # noqa: F841
+
+    # ------------------------------------------------------------------
+    # Internal: sub-system accessors
+    # ------------------------------------------------------------------
+
+    def _get_novelty_filter(self) -> NoveltyFilter:
+        if self._novelty_filter is None:
+            from opencortex.memory.novelty_filter import NoveltyFilter
+
+            novelty_db = self._db_path.parent / "novelty.db"
+            self._novelty_filter = NoveltyFilter(
+                threshold=self._config.simplemem.novelty_threshold,
+                window_size=self._config.simplemem.novelty_window,
+                db_path=novelty_db,
+            )
+        return self._novelty_filter
+
+    def _get_vector_store(self) -> VectorStore:
+        if self._vector_store is None:  # noqa: F841
+            from opencortex.memory.vector_store import VectorStore
+
+            vec_db = self._db_path.parent / "vectors.db"
+            self._vector_store = VectorStore(db_path=vec_db)
+        return self._vector_store
+
     def _connect(self) -> sqlite3.Connection:
         if self._conn is None:
             self._conn = sqlite3.connect(str(self._db_path))
@@ -112,6 +156,8 @@ class TieredMemoryStore:
             "id": row["id"],
             "tier": row["tier"],
             "content": row["content"],
+            "summary": row["summary"] if "summary" in row.keys() else "",
+            "raw_content_path": row["raw_content_path"] if "raw_content_path" in row.keys() else "",
             "tags": json.loads(row["tags"]),
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
@@ -127,9 +173,15 @@ class TieredMemoryStore:
         - auto_load tiers are always included
         - trigger_load tiers are included only when query matches via FTS
         - search_only tiers are never loaded into context
+
+        When pyramid_retrieval is enabled, results are formatted via
+        pyramid progressive retrieval with token budget control.
         """
         conn = self._connect()
         parts: list[str] = []
+
+        # Collect candidate memories
+        candidates: list[dict[str, Any]] = []
 
         # Auto-load tiers
         for tier, cfg in self._config.tiers.items():
@@ -139,11 +191,7 @@ class TieredMemoryStore:
                 "SELECT * FROM tiered_memories WHERE tier = ? ORDER BY updated_at DESC LIMIT 200",
                 (tier.value,),
             ).fetchall()
-            if rows:
-                parts.append(f"## {tier.value.upper()}\n")
-                for r in rows:
-                    parts.append(r["content"])
-                parts.append("")
+            candidates.extend(self._row_to_dict(r) for r in rows)
 
         # Trigger-load tiers (keyword match)
         if query and len(query) >= 2:
@@ -166,11 +214,52 @@ class TieredMemoryStore:
                         (tier.value, f"%{query}%", f"%{query}%"),
                     )
                 rows = cursor.fetchall()
-                if rows:
-                    parts.append(f"## {tier.value.upper()} (matched: {query})\n")
-                    for r in rows:
-                        parts.append(r["content"])
-                    parts.append("")
+                candidates.extend(self._row_to_dict(r) for r in rows)
+
+        # --- Pyramid retrieval (optional) ---
+        if self._config.simplemem.pyramid_retrieval and candidates:
+            from opencortex.memory.pyramid_retrieval import (
+                PyramidConfig,
+                PyramidMemory,
+                retrieve,
+            )
+
+            pmems = [
+                PyramidMemory(
+                    id=c["id"],
+                    summary=c.get("summary") or c["content"][:100],
+                    full_text=c["content"],
+                    score=1.0,  # auto-load gets high score
+                )
+                for c in candidates
+            ]
+            cfg = PyramidConfig(
+                similarity_threshold=self._config.simplemem.pyramid_similarity_threshold,
+                token_budget=self._config.simplemem.pyramid_budget,
+            )
+            return retrieve(query, pmems, config=cfg)
+
+        # --- Original behaviour ---
+        # Group by tier for display
+        seen_ids: set[int] = set()
+        tier_order: list[str] = []
+        tier_parts: dict[str, list[str]] = {}
+
+        for c in candidates:
+            tier = c["tier"]
+            if tier not in tier_parts:
+                tier_parts[tier] = []
+                tier_order.append(tier)
+            if c["id"] not in seen_ids:
+                seen_ids.add(c["id"])
+                tier_parts[tier].append(c["content"])
+
+        for tier in tier_order:
+            items = tier_parts[tier]
+            if items:
+                parts.append(f"## {tier.upper()}\n")
+                parts.extend(items)
+                parts.append("")
 
         return "\n".join(parts)
 
@@ -179,18 +268,40 @@ class TieredMemoryStore:
         tier: MemoryTier,
         content: str,
         tags: list[str] | None = None,
-    ) -> int:
-        """Add a memory entry to the specified tier. Returns row ID."""
+        *,
+        summary: str = "",
+        raw_content_path: str = "",
+        embedding: Any | None = None,
+    ) -> int | None:
+        """Add a memory entry to the specified tier. Returns row ID or None if filtered."""
+        # --- Novelty filter (optional) ---
+        if self._config.simplemem.novelty_filter:
+            nf = self._get_novelty_filter()
+            if not nf.is_novel(content):
+                logger.debug("Novelty filter rejected: %s", content[:80])
+                return None
+
         conn = self._connect()
         now = time.time()
         tags_json = json.dumps(tags or [], ensure_ascii=False)
+
         cursor = conn.execute(
-            """INSERT INTO tiered_memories (tier, content, tags, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (tier.value, content, tags_json, now, now),
+            """INSERT INTO tiered_memories (tier, content, summary, raw_content_path, tags, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (tier.value, content, summary, raw_content_path, tags_json, now, now),
         )
         conn.commit()
-        return cursor.lastrowid
+        row_id = cursor.lastrowid
+
+        # --- Vector store (optional) ---
+        if self._config.simplemem.vector_search and embedding is not None:
+            import numpy as np
+
+            vs = self._get_vector_store()
+            vec = np.asarray(embedding, dtype=np.float32)
+            vs.upsert(row_id, vec)
+
+        return row_id
 
     def search(
         self,
@@ -198,10 +309,17 @@ class TieredMemoryStore:
         tiers: list[MemoryTier] | None = None,
         *,
         limit: int = 10,
+        query_embedding: Any | None = None,
     ) -> list[dict[str, Any]]:
-        """Cross-tier memory search."""
+        """Cross-tier memory search.
+
+        When vector_search is enabled and query_embedding is provided,
+        performs hybrid search (dense ∪ FTS5) via set-union.
+        """
         conn = self._connect()
 
+        # --- FTS5 / LIKE search (original) ---
+        fts_results: list[dict[str, Any]] = []
         if tiers:
             tier_values = [t.value for t in tiers]
             placeholders = ",".join("?" for _ in tier_values)
@@ -242,7 +360,37 @@ class TieredMemoryStore:
                     (like, like, limit),
                 )
 
-        return [self._row_to_dict(r) for r in cursor.fetchall()]
+        fts_results = [self._row_to_dict(r) for r in cursor.fetchall()]
+
+        # --- Hybrid search (optional) ---
+        if self._config.simplemem.vector_search and query_embedding is not None:
+            import numpy as np
+
+            vs = self._get_vector_store()
+            vec = np.asarray(query_embedding, dtype=np.float32)
+            fts_ids = [{"id": r["id"]} for r in fts_results]
+            merged = vs.hybrid_search(vec, fts_ids, limit=limit)
+
+            # Build result set from merged IDs
+            merged_ids = [r["id"] for r in merged]
+            if not merged_ids:
+                return []
+
+            placeholders = ",".join("?" for _ in merged_ids)
+            rows = conn.execute(
+                f"SELECT * FROM tiered_memories WHERE id IN ({placeholders})",
+                merged_ids,
+            ).fetchall()
+            row_map = {r["id"]: self._row_to_dict(r) for r in rows}
+
+            # Preserve merged ordering
+            results = []
+            for mid in merged_ids:
+                if mid in row_map:
+                    results.append(row_map[mid])
+            return results
+
+        return fts_results
 
     def decay(self) -> int:
         """Execute decay: downgrade expired memories based on tier TTL.
@@ -303,6 +451,10 @@ class TieredMemoryStore:
         return True
 
     def close(self) -> None:
+        if self._novelty_filter is not None:
+            self._novelty_filter.close()
+        if self._vector_store is not None:
+            self._vector_store.close()
         if self._conn is not None:
             self._conn.close()
             self._conn = None

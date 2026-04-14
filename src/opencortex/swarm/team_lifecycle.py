@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import shutil
@@ -23,6 +24,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 from opencortex.swarm.mailbox import get_team_dir
+
+logger = logging.getLogger(__name__)
 from opencortex.swarm.types import BackendType
 
 
@@ -663,7 +666,7 @@ async def _kill_orphaned_teammate_panes(team_name: str) -> None:
                 use_external_session=use_external_session,
             )
         except Exception:
-            pass
+            logger.warning("Failed to kill tmux pane for %s", member.agent_id, exc_info=True)
 
     await asyncio.gather(*(_kill_one(m) for m in pane_members), return_exceptions=True)
 
