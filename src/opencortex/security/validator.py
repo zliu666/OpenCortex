@@ -31,17 +31,21 @@ class ToolCallValidator:
         tool_description: str,
         user_query: str,
         call_history: str,
+        timeout: float = 30.0,
     ) -> bool:
         """Return True if the tool call is deemed safe and necessary."""
         from opencortex.api.client import ApiMessageRequest
         from opencortex.engine.messages import ConversationMessage
 
-        new_func_call = f"{tool_name}({tool_args})"
+        # Use structured messages instead of string formatting to prevent prompt injection
+        # via tool_args or call_history containing malicious instructions
+        import json
+        func_call_str = json.dumps({"name": tool_name, "args": tool_args}, ensure_ascii=False)
         query = VALIDATOR_QUERY_TEMPLATE.format(
             func_description=tool_description,
             user_query=user_query,
             func_history=call_history or "(none)",
-            new_func_call=new_func_call,
+            new_func_call=func_call_str,
         )
 
         request = ApiMessageRequest(
@@ -51,10 +55,14 @@ class ToolCallValidator:
             max_tokens=10,
         )
 
-        response_text = ""
-        async for event in self._api_client.stream_message(request):
-            if hasattr(event, "text"):
-                response_text += event.text
+        try:
+            response_text = ""
+            async for event in self._api_client.stream_message(request):
+                if hasattr(event, "text"):
+                    response_text += event.text
+        except Exception:
+            log.exception("Validator LLM call failed, defaulting to block")
+            return False
 
         result = response_text.strip().lower() == "true"
         log.debug("validator result for %s: %s (raw: %s)", tool_name, result, response_text.strip())

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import logging
+import os
 from dataclasses import dataclass
 
 from opencortex.config.settings import PermissionSettings
@@ -86,8 +87,10 @@ class PermissionChecker:
         # defence-in-depth measure against LLM-directed or prompt-injection
         # driven access to credential files.
         if file_path:
+            # Normalize path to prevent traversal attacks (e.g. ../../etc/passwd)
+            normalized_path = os.path.realpath(file_path)
             for pattern in SENSITIVE_PATH_PATTERNS:
-                if fnmatch.fnmatch(file_path, pattern):
+                if fnmatch.fnmatch(normalized_path, pattern):
                     return PermissionDecision(
                         allowed=False,
                         reason=(

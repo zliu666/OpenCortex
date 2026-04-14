@@ -185,10 +185,12 @@ class SubAgentDispatcher:
         from opencortex.engine.messages import ConversationMessage
 
         intent_text = intent or "Extract all factual information"
+        # Use JSON serialization to prevent prompt injection via tool_result content
+        import json
         query = SUBAGENT_QUERY_TEMPLATE.format(
             tool_name="(external tool)",
             intent=intent_text,
-            tool_result=content[:4000],  # Truncate very long content
+            tool_result=json.dumps(content[:4000], ensure_ascii=False) if content else "(empty)",
         )
 
         request = ApiMessageRequest(

@@ -13,9 +13,12 @@ class MessageBus:
     them and pushes responses to the outbound queue.
     """
 
-    def __init__(self):
-        self.inbound: asyncio.Queue[InboundMessage] = asyncio.Queue()
-        self.outbound: asyncio.Queue[OutboundMessage] = asyncio.Queue()
+    DEFAULT_MAXSIZE = 1000
+
+    def __init__(self, maxsize: int | None = None):
+        _maxsize = maxsize if maxsize is not None else self.DEFAULT_MAXSIZE
+        self.inbound: asyncio.Queue[InboundMessage] = asyncio.Queue(maxsize=_maxsize)
+        self.outbound: asyncio.Queue[OutboundMessage] = asyncio.Queue(maxsize=_maxsize)
 
     async def publish_inbound(self, msg: InboundMessage) -> None:
         """Publish a message from a channel to the agent."""

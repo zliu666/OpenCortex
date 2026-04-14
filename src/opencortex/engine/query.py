@@ -96,6 +96,17 @@ async def run_query(
             if isinstance(_c, str) and _c:
                 context._user_query = _c[:500]
                 break
+            elif isinstance(_c, list):
+                # Content is a list of ContentBlock — extract text blocks
+                text_parts = []
+                for block in _c:
+                    if isinstance(block, dict) and block.get('type') == 'text':
+                        text_parts.append(block.get('text', ''))
+                    elif hasattr(block, 'text'):
+                        text_parts.append(block.text)
+                if text_parts:
+                    context._user_query = ' '.join(text_parts)[:500]
+                    break
 
     turn_count = 0
     judge_extensions = 0
@@ -192,10 +203,10 @@ async def run_query(
 
             results = await asyncio.gather(*[_run(tc) for tc in tool_calls], return_exceptions=True)
             tool_results = []
-            for r in results:
+            for tc, r in zip(tool_calls, results):
                 if isinstance(r, Exception):
                     tool_results.append(ToolResultBlock(
-                        tool_use_id="error",
+                        tool_use_id=tc.id,
                         content=f"Tool execution failed: {r}",
                         is_error=True,
                     ))
@@ -472,7 +483,7 @@ async def _judge_should_extend(
         final_text = ""
         async for event in judge_api.stream_message(
             ApiMessageRequest(
-                model=os.environ.get("OPENHARNESS_JUDGE_MODEL", "glm-5-turbo"),  # Judge model (configurable)
+                model=os.environ.get("OPENHARNESS_JUDGE_MODEL", context.model),  # Judge model (configurable, defaults to current context model)
                 messages=[{"role": "user", "content": judge_prompt}],
                 system_prompt=_JUDGE_SYSTEM_PROMPT,
                 max_tokens=10,
@@ -491,5 +502,5 @@ async def _judge_should_extend(
         return result
 
     except Exception as exc:
-        log.warning("[JudgeAgent] Error calling judge, defaulting to continue: %s", exc)
-        return True  # default: allow continuation on error
+        log.warning("[JudgeAgent] Error calling judge, defaulting to STOP (safe fail): %s", exc)
+        return False  # safe-fail: stop on error instead of infinite loop

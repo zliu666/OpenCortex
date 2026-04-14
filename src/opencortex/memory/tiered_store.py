@@ -13,6 +13,11 @@ from typing import Any
 
 from opencortex.config.paths import get_data_dir
 
+
+def _escape_fts5_query(query: str) -> str:
+    """Escape special characters for FTS5 MATCH queries."""
+    return query.replace('"', '""')
+
 logger = logging.getLogger(__name__)
 
 _TIERED_SCHEMA = """
@@ -204,7 +209,7 @@ class TieredMemoryStore:
                            JOIN tiered_memories tm ON tm.id = f.rowid
                            WHERE tiered_memories_fts MATCH ?
                            ORDER BY rank LIMIT 50""",
-                        (f'"{query}"',),
+                        (f'"{_escape_fts5_query(query)}"',),
                     )
                 else:
                     cursor = conn.execute(
@@ -331,7 +336,7 @@ class TieredMemoryStore:
                         WHERE tiered_memories_fts MATCH ?
                         AND tm.tier IN ({placeholders})
                         ORDER BY rank LIMIT ?""",
-                    (f'"{query}"', *tier_values, limit),
+                    (f'"{_escape_fts5_query(query)}"', *tier_values, limit),
                 )
             else:
                 like = f"%{query}%"
@@ -349,7 +354,7 @@ class TieredMemoryStore:
                        JOIN tiered_memories tm ON tm.id = f.rowid
                        WHERE tiered_memories_fts MATCH ?
                        ORDER BY rank LIMIT ?""",
-                    (f'"{query}"', limit),
+                    (f'"{_escape_fts5_query(query)}"', limit),
                 )
             else:
                 like = f"%{query}%"

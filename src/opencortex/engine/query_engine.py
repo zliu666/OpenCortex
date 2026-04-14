@@ -139,7 +139,7 @@ class QueryEngine:
         self._messages.append(user_message)
         self._turn_count += 1
 
-        # Memory: prefetch + inject into system prompt
+        # Memory: prefetch + inject into system prompt (only first time)
         effective_prompt = self._system_prompt
         if self._memory_pipeline is not None:
             try:

@@ -99,6 +99,12 @@ class SecurityLayer:
                     reason=f"Security validator blocked {tool_name}: deemed unsafe or unnecessary",
                     privilege=privilege,
                 )
+        else:
+            # Validator disabled: still log classification info for auditing
+            log.warning("security layer: validator DISABLED, allowing %s (%s/%s) without validation",
+                        tool_name,
+                        privilege.value if privilege else "unknown",
+                        category.value if category else "unknown")
 
         return SecurityCheckResult(allowed=True, privilege=privilege, category=category)
 

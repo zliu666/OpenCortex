@@ -13,6 +13,13 @@ from opencortex.config.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
 
+
+def _escape_fts5_query(query: str) -> str:
+    """Escape special characters for FTS5 MATCH queries."""
+    # Escape double quotes by doubling them
+    escaped = query.replace('"', '""')
+    return escaped
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +111,7 @@ class FtsMemoryStore:
                    WHERE memories_fts MATCH ?
                    ORDER BY rank
                    LIMIT ?""",
-                (f'"{query}"', limit),
+                (f'"{_escape_fts5_query(query)}"', limit),
             )
         else:
             cursor = conn.execute(

@@ -26,12 +26,19 @@ class MemoryPipeline:
         self._files = MemoryFiles(memory_dir)
         self._snapshot: dict[str, str] = {}
         self._should_nudge: bool = False
+        self._prefetched: bool = False
 
     # -- lifecycle -----------------------------------------------------------
 
     async def prefetch(self) -> None:
-        """Read MEMORY.md + USER.md at session start and freeze a snapshot."""
+        """Read MEMORY.md + USER.md at session start and freeze a snapshot.
+
+        Only reads once; subsequent calls are no-ops to avoid redundant I/O.
+        """
+        if self._prefetched:
+            return
         self._snapshot = self._files.take_snapshot()
+        self._prefetched = True
         logger.debug(
             "Memory snapshot taken: memory=%d chars, user=%d chars",
             len(self._snapshot.get("memory", "")),
@@ -68,15 +75,16 @@ class MemoryPipeline:
         self._should_nudge = (turn_count % nudge_interval == 0) and turn_count > 0
 
         if self.fts5_store is not None and messages:
-            last = messages[-1]
-            role = last.get("role", "unknown")
-            content = last.get("content", "")
-            if content:
-                self.fts5_store.store(
-                    key=f"turn:{turn_count}:{role}",
-                    content=str(content),
-                    metadata={"turn": turn_count, "role": role},
-                )
+            # Store all messages from this turn, not just the last one
+            for msg in messages:
+                role = msg.get("role", "unknown") if isinstance(msg, dict) else getattr(msg, "role", "unknown")
+                content = msg.get("content", "") if isinstance(msg, dict) else getattr(msg, "content", "")
+                if content:
+                    self.fts5_store.store(
+                        key=f"turn:{turn_count}:{role}",
+                        content=str(content),
+                        metadata={"turn": turn_count, "role": role},
+                    )
 
     # -- search --------------------------------------------------------------
 

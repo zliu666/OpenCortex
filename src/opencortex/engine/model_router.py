@@ -261,8 +261,24 @@ class ModelRouter:
         return self._primary_route()
 
     def record_usage(self, model: str, tokens: int) -> None:
-        """Record token usage for budget tracking."""
+        """Record token usage for budget tracking.
+
+        Records under both the model name AND the tier name ('primary'/'execution')
+        to ensure budget checks work correctly.
+        """
         self._usage[model] = self._usage.get(model, 0) + tokens
+        # Also record under the tier for budget checking
+        tier = self._model_to_tier(model)
+        if tier:
+            self._usage[tier] = self._usage.get(tier, 0) + tokens
+
+    def _model_to_tier(self, model: str) -> str | None:
+        """Map a model name back to its tier (primary/execution)."""
+        if model == self._settings.primary_model:
+            return "primary"
+        if model == self._settings.execution_model:
+            return "execution"
+        return None
 
     def set_budget(self, tier: str, max_tokens: int) -> None:
         """Set daily token budget for a model tier.

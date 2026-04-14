@@ -174,9 +174,9 @@ class ToolClassifier:
             if pattern.search(tool_description):
                 return category
 
-        # default: INTERNAL (safe read-only)
-        log.debug("ToolClassifier: defaulting %s to INTERNAL", tool_name)
-        return ToolCategory.INTERNAL
+        # default: COMMAND (safest — strict by default)
+        log.debug("ToolClassifier: defaulting %s to COMMAND (safe default)", tool_name)
+        return ToolCategory.COMMAND
 
     def _put_cache(self, key: str, value: ToolCategory) -> None:
         self._cache[key] = value

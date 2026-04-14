@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from opencortex.channels.bus.events import InboundMessage, OutboundMessage
 from opencortex.channels.bus.queue import MessageBus
@@ -29,15 +29,19 @@ logger = logging.getLogger(__name__)
 class ChannelBridge:
     """Bridges inbound channel messages to the QueryEngine and routes replies back.
 
-    One bridge instance should be created per QueryEngine.  It owns the asyncio
-    loop integration and handles back-pressure through the MessageBus queues.
+    Supports session isolation: each unique session_key gets its own QueryEngine
+    instance with independent conversation history, preventing cross-user context
+    pollution.
     """
 
-    def __init__(self, *, engine: "QueryEngine", bus: MessageBus) -> None:
-        self._engine = engine
+    def __init__(self, *, engine_factory: Callable[[str], "QueryEngine"], bus: MessageBus) -> None:
+        self._engine_factory = engine_factory
         self._bus = bus
         self._running = False
         self._task: asyncio.Task | None = None
+        # Session isolation: per-session engine instances
+        self._engines: dict[str, "QueryEngine"] = {}
+        self._default_engine: "QueryEngine" | None = None
 
     # ------------------------------------------------------------------
     # Public control API
@@ -91,9 +95,24 @@ class ChannelBridge:
             except Exception:
                 logger.exception("ChannelBridge: unhandled error processing message")
 
+    def _get_engine(self, session_key: str | None) -> "QueryEngine":
+        """Get or create a QueryEngine for the given session."""
+        if not session_key:
+            # No session isolation: use shared default engine
+            if self._default_engine is None:
+                self._default_engine = self._engine_factory("default")
+            return self._default_engine
+        if session_key not in self._engines:
+            self._engines[session_key] = self._engine_factory(session_key)
+            logger.info("Created new engine for session: %s", session_key)
+        return self._engines[session_key]
+
     async def _handle(self, msg: InboundMessage) -> None:
         """Process one inbound message and publish the reply."""
         logger.debug("ChannelBridge received from %s/%s", msg.channel, msg.chat_id)
+
+        # Get or create session-isolated engine
+        engine = self._get_engine(msg.session_key)
 
         # Rebuild system prompt with memory and latest user prompt so that
         # relevant memories are surfaced for each incoming message.
@@ -103,20 +122,19 @@ class ChannelBridge:
             settings = load_settings()
             new_prompt = build_runtime_system_prompt(
                 settings,
-                cwd=self._engine._cwd,
+                cwd=engine._cwd,
                 latest_user_prompt=msg.content,
             )
-            self._engine.set_system_prompt(new_prompt)
+            engine.set_system_prompt(new_prompt)
         except Exception:
             logger.debug("ChannelBridge: failed to rebuild system prompt, using existing", exc_info=True)
 
         reply_parts: list[str] = []
         try:
-            async for event in self._engine.submit_message(msg.content):
+            async for event in engine.submit_message(msg.content):
                 if isinstance(event, AssistantTextDelta):
                     reply_parts.append(event.text)
                 elif isinstance(event, AssistantTurnComplete):
-                    # Turn is done; we'll send the accumulated text below
                     pass
         except Exception as e:
             logger.exception(

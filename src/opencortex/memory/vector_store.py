@@ -92,11 +92,14 @@ class VectorStore:
         query_embedding: np.ndarray,
         *,
         limit: int = 10,
+        candidate_limit: int = 500,
     ) -> list[dict[str, Any]]:
         """Return top-*limit* results by cosine similarity."""
         conn = self._connect()
+        # Limit candidate set to avoid full table scan on large datasets
         rows = conn.execute(
-            "SELECT external_id, embedding, dim FROM vector_embeddings"
+            "SELECT external_id, embedding, dim FROM vector_embeddings ORDER BY id DESC LIMIT ?",
+            (candidate_limit,)
         ).fetchall()
 
         if not rows:
