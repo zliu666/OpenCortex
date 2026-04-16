@@ -21,8 +21,20 @@ class MessageBus:
         self.outbound: asyncio.Queue[OutboundMessage] = asyncio.Queue(maxsize=_maxsize)
 
     async def publish_inbound(self, msg: InboundMessage) -> None:
-        """Publish a message from a channel to the agent."""
-        await self.inbound.put(msg)
+        """Publish a message from a channel to the agent.
+
+        Bug 9 fix: use put_nowait with backpressure — if queue is full,
+        discard the oldest message to prevent unbounded blocking.
+        """
+        try:
+            self.inbound.put_nowait(msg)
+        except asyncio.QueueFull:
+            # Discard oldest message to make room
+            try:
+                self.inbound.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+            self.inbound.put_nowait(msg)
 
     async def consume_inbound(self) -> InboundMessage:
         """Consume the next inbound message (blocks until available)."""

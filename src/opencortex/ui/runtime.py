@@ -176,6 +176,7 @@ async def build_runtime(
         ask_user_prompt=ask_user_prompt,
         hook_executor=hook_executor,
         tool_metadata={"mcp_manager": mcp_manager, "bridge_manager": bridge_manager},
+        memory_dir=Path(cwd) / ".opencortex" / "memory",  # Bug 3 fix: pass memory_dir for cross-session recall
     )
     # ── Security Layer (auto-enable when settings say so) ──
     if settings.security.enabled:

@@ -268,11 +268,50 @@ def get_context_window(model: str) -> int:
 
 
 def get_autocompact_threshold(model: str) -> int:
-    """Calculate the token count at which auto-compact fires."""
-    context_window = get_context_window(model)
-    reserved = min(MAX_OUTPUT_TOKENS_FOR_SUMMARY, 20_000)
-    effective = context_window - reserved
-    return effective - AUTOCOMPACT_BUFFER_TOKENS
+    """Fixed threshold to prevent unbounded message growth (Bug 1 fix).
+
+    Previously calculated dynamically from context window, which could be
+    200k+ tokens — way too large, causing messages to grow unbounded before
+    auto-compact ever fires. Fixed at 50k tokens.
+    """
+    return 50_000
+
+
+def truncate_tool_results(
+    messages: list[ConversationMessage],
+    *,
+    max_length: int = 2000,
+    truncation_length: int = 500,
+) -> int:
+    """Truncate oversized tool result content to reduce memory (Bug 1 fix).
+
+    Tool results exceeding *max_length* characters are shortened to
+    *truncation_length* characters with a truncation marker appended.
+    Returns the number of results truncated.
+    """
+    truncated = 0
+    for msg in messages:
+        if msg.role != "user":
+            continue
+        new_content: list[ContentBlock] = []
+        for block in msg.content:
+            if (
+                isinstance(block, ToolResultBlock)
+                and len(block.content) > max_length
+            ):
+                snippet = block.content[:truncation_length]
+                new_content.append(
+                    ToolResultBlock(
+                        tool_use_id=block.tool_use_id,
+                        content=f"{snippet}\n... [truncated, original {len(block.content)} chars]",
+                        is_error=block.is_error,
+                    )
+                )
+                truncated += 1
+            else:
+                new_content.append(block)
+        msg.content = new_content
+    return truncated
 
 
 def should_autocompact(
@@ -520,5 +559,6 @@ __all__ = [
     "get_compact_prompt",
     "microcompact_messages",
     "should_autocompact",
+    "truncate_tool_results",
     "summarize_messages",
 ]

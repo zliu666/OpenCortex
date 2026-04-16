@@ -127,7 +127,7 @@ class ChannelBridge:
             )
             engine.set_system_prompt(new_prompt)
         except Exception:
-            logger.debug("ChannelBridge: failed to rebuild system prompt, using existing", exc_info=True)
+            logger.warning("ChannelBridge: failed to rebuild system prompt, using existing", exc_info=True)
 
         reply_parts: list[str] = []
         try:

@@ -71,7 +71,7 @@ class MemoryPipeline:
         turn_count: int,
         nudge_interval: int = 10,
     ) -> None:
-        """Post-turn housekeeping: persist to FTS5 and check nudge."""
+        """Post-turn housekeeping: persist to FTS5, extract facts, check nudge."""
         self._should_nudge = (turn_count % nudge_interval == 0) and turn_count > 0
 
         if self.fts5_store is not None and messages:
@@ -85,6 +85,9 @@ class MemoryPipeline:
                         content=str(content),
                         metadata={"turn": turn_count, "role": role},
                     )
+
+        # Bug 3 fix: persist important user-stated facts to MEMORY.md for cross-session recall
+        await self._persist_important_facts(messages)
 
     # -- search --------------------------------------------------------------
 
@@ -106,3 +109,41 @@ class MemoryPipeline:
     def should_nudge(self) -> bool:
         """Whether a background memory-review nudge is due."""
         return self._should_nudge
+
+    # -- Bug 3 fix: cross-session fact persistence --
+
+    async def _persist_important_facts(self, messages: list[dict[str, Any]]) -> None:
+        """Bug 3 fix: extract user-stated facts and append to MEMORY.md.
+
+        Simple heuristic: look for user messages that contain declarative
+        statements with key personal/project facts (prefixed with markers
+        like 'my name is', 'I work at', 'I prefer', etc.) and persist them.
+        """
+        import re
+
+        fact_patterns = [
+            r"my name is (.+)",
+            r"I work (?:at|for|on) (.+)",
+            r"I prefer (.+)",
+            r"I like (.+)",
+            r"my (?:favorite|fav) (.+) is (.+)",
+            r"I'm (?:using|working with) (.+)",
+            r"our (?:team|project|repo) (.+)",
+        ]
+        combined = re.compile(
+            r"(?:" + "|".join(fact_patterns) + r")",
+            re.IGNORECASE,
+        )
+
+        for msg in messages[-4:]:  # only check recent messages
+            if not isinstance(msg, dict) or msg.get("role") != "user":
+                continue
+            content = str(msg.get("content", ""))
+            for m in combined.finditer(content):
+                fact = m.group(0).strip()
+                if fact:
+                    try:
+                        self._files.add_memory(fact)
+                        logger.info("Persisted fact to MEMORY.md: %s", fact[:80])
+                    except Exception as exc:
+                        logger.debug("Failed to persist fact: %s", exc)

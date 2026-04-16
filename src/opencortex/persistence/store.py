@@ -10,7 +10,7 @@ from typing import Any
 
 import aiosqlite
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
@@ -88,6 +88,41 @@ class PersistenceStore:
         count = (await cur.fetchone())[0]
         if count == 0:
             await db.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+        else:
+            # Run migrations if needed
+            cur = await db.execute("SELECT version FROM schema_version")
+            row = await cur.fetchone()
+            if row and row[0] < 2:
+                await self._migrate_v1_to_v2(db)
+        await db.commit()
+
+    async def _migrate_v1_to_v2(self, db: aiosqlite.Connection) -> None:
+        """Bug 5 fix: migrate from v1 to v2 — rebuild FTS5 with proper triggers.
+
+        Old v1 triggers (messages_ai/messages_ad) could conflict with the
+        canonical triggers (messages_fts_insert/delete/update). Drop all
+        legacy triggers before recreating.
+        """
+        # Bug 5 fix: drop legacy triggers that were missing from migration
+        await db.executescript("""
+            DROP TRIGGER IF EXISTS messages_ai;
+            DROP TRIGGER IF EXISTS messages_ad;
+            DROP TRIGGER IF EXISTS messages_au;
+        """)
+        # Recreate canonical triggers
+        await db.executescript("""
+            CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages BEGIN
+                INSERT INTO messages_fts(rowid, content) VALUES (new.id, new.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages BEGIN
+                INSERT INTO messages_fts(messages_fts, rowid, content) VALUES('delete', old.id, old.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE ON messages BEGIN
+                INSERT INTO messages_fts(messages_fts, rowid, content) VALUES('delete', old.id, old.content);
+                INSERT INTO messages_fts(rowid, content) VALUES (new.id, new.content);
+            END;
+        """)
+        await db.execute("UPDATE schema_version SET version = 2")
         await db.commit()
 
     # --- Session operations ---

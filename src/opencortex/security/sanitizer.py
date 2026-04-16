@@ -62,9 +62,18 @@ class ToolResultSanitizer:
             max_tokens=10,
         )
         response_text = ""
-        async for event in self._api_client.stream_message(request):
-            if hasattr(event, "text"):
-                response_text += event.text
+        # Bug 8 fix: add 30s timeout to prevent security LLM from hanging indefinitely
+        import asyncio
+        try:
+            async def _stream():
+                nonlocal response_text
+                async for event in self._api_client.stream_message(request):
+                    if hasattr(event, "text"):
+                        response_text += event.text
+            await asyncio.wait_for(_stream(), timeout=30.0)
+        except asyncio.TimeoutError:
+            log.warning("Security detector LLM timed out after 30s, assuming safe")
+            return False
 
         return "true" in response_text.lower()
 
@@ -81,9 +90,18 @@ class ToolResultSanitizer:
             max_tokens=1024,
         )
         response_text = ""
-        async for event in self._api_client.stream_message(request):
-            if hasattr(event, "text"):
-                response_text += event.text
+        # Bug 8 fix: add 30s timeout to prevent security LLM from hanging indefinitely
+        import asyncio
+        try:
+            async def _stream():
+                nonlocal response_text
+                async for event in self._api_client.stream_message(request):
+                    if hasattr(event, "text"):
+                        response_text += event.text
+            await asyncio.wait_for(_stream(), timeout=30.0)
+        except asyncio.TimeoutError:
+            log.warning("Security extractor LLM timed out after 30s")
+            return []
 
         return self._parse_detected_instructions(response_text)
 

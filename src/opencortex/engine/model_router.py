@@ -273,10 +273,15 @@ class ModelRouter:
             self._usage[tier] = self._usage.get(tier, 0) + tokens
 
     def _model_to_tier(self, model: str) -> str | None:
-        """Map a model name back to its tier (primary/execution)."""
-        if model == self._settings.primary_model:
+        """Map a model name back to its tier (primary/execution).
+
+        Bug 10 fix: use case-insensitive comparison to avoid key mismatch
+        when model names have inconsistent casing (e.g. 'GPT-4' vs 'gpt-4').
+        """
+        model_lower = model.lower()
+        if model_lower == self._settings.primary_model.lower():
             return "primary"
-        if model == self._settings.execution_model:
+        if model_lower == self._settings.execution_model.lower():
             return "execution"
         return None
 
