@@ -212,10 +212,19 @@ class QueryEngine:
             self._session_store = None
             try:
                 from opencortex.memory.tiered_store import TieredMemoryStore, MemoryTier
+            except ImportError as exc:
+                logger.warning("TieredMemoryStore not available (import failed): %s", exc)
+                return None
+            try:
                 self._session_store = TieredMemoryStore()
                 self._session_tier = MemoryTier.SESSION
+            except (TypeError, ValueError, AttributeError) as exc:
+                logger.warning("TieredMemoryStore init failed (config/args error): %s", exc)
+                return None
             except Exception as exc:
-                logger.warning("Failed to init TieredMemoryStore for session: %s", exc)
+                # Unexpected init errors — log at higher level so they're not silently swallowed
+                logger.error("TieredMemoryStore init failed unexpectedly: %s", exc, exc_info=True)
+                return None
         return self._session_store
 
     def _persist_to_session_memory(self, user_message: ConversationMessage) -> None:

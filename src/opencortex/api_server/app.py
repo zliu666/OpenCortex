@@ -127,6 +127,15 @@ async def _record_usage(usage: UsageInfo, model: str = "unknown", session_id: st
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize credential pool if extra keys are configured
+    try:
+        from opencortex.auth.credential_pool import init_credential_pool_from_config
+        pool = init_credential_pool_from_config()
+        if pool:
+            logger.info("Credential pool initialized with %d keys", pool.size)
+    except Exception as exc:
+        logger.debug("Credential pool init skipped: %s", exc)
+
     logger.info("OpenCortex API server started (v%s)", __version__)
     yield
     # Cleanup sessions

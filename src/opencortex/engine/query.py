@@ -162,6 +162,31 @@ async def run_query(
                 if action == RecoveryAction.ABORT:
                     yield ErrorEvent(message=f"API error: {classified.message}"), None
                     return
+
+                # Handle credential rotation
+                if action == RecoveryAction.ROTATE_CREDENTIAL:
+                    try:
+                        from opencortex.auth.credential_pool import get_credential_pool
+                        _pool = get_credential_pool()
+                        if _pool is not None:
+                            _new_cred = await _pool.rotate()
+                            # Patch the api_client's api_key if possible
+                            if hasattr(context.api_client, '_api_key'):
+                                context.api_client._api_key = _new_cred.api_key
+                            elif hasattr(context.api_client, 'api_key'):
+                                context.api_client.api_key = _new_cred.api_key
+                            yield StatusEvent(
+                                message=f"Rotated credential to alternate key (pool has {_pool.size} keys)"
+                            ), None
+                        else:
+                            yield StatusEvent(
+                                message="Credential rotation requested but no pool configured"
+                            ), None
+                    except Exception as pool_exc:
+                        yield StatusEvent(
+                            message=f"Credential rotation failed: {pool_exc}"
+                        ), None
+
                 # Recoverable — notify user and retry
                 yield StatusEvent(
                     message=(

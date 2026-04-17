@@ -35,16 +35,23 @@ class CredentialExhaustedError(Exception):
 
 
 class CredentialPool:
-    """Thread-safe (async) pool of API credentials with cooldown management."""
+    """Thread-safe (async) pool of API credentials with cooldown management.
+
+    Integrates with RecoveryChain: when an AUTH/BILLING error is classified,
+    the recovery loop calls rotate() to switch to the next available key.
+    """
 
     def __init__(self) -> None:
         self._credentials: List[Credential] = []
         self._rr_index: int = 0
         self._lock = asyncio.Lock()
+        self._current: Optional[Credential] = None
 
     def add(self, credential: Credential) -> None:
         """Add a credential to the pool."""
         self._credentials.append(credential)
+        if self._current is None:
+            self._current = self._credentials[0]
 
     @property
     def available_count(self) -> int:
@@ -55,6 +62,15 @@ class CredentialPool:
             if c.status == CredentialStatus.OK
             and (c.cooldown_until is None or c.cooldown_until <= now)
         )
+
+    @property
+    def current_key(self) -> Optional[str]:
+        """Return the current active API key, or None if pool is empty."""
+        return self._current.api_key if self._current else None
+
+    @property
+    def size(self) -> int:
+        return len(self._credentials)
 
     def _is_available(self, cred: Credential) -> bool:
         now = time.monotonic()
@@ -73,19 +89,47 @@ class CredentialPool:
                 raise CredentialExhaustedError("No available credentials")
 
             if strategy == SelectionStrategy.FILL_FIRST:
-                return available[0]
+                selected = available[0]
 
             elif strategy == SelectionStrategy.ROUND_ROBIN:
-                # Round-robin among available only
                 self._rr_index = self._rr_index % len(available)
                 selected = available[self._rr_index]
                 self._rr_index = (self._rr_index + 1) % len(available)
-                return selected
 
             elif strategy == SelectionStrategy.LEAST_USED:
-                return min(available, key=lambda c: c.usage_count)
+                selected = min(available, key=lambda c: c.usage_count)
 
-            raise ValueError(f"Unknown strategy: {strategy}")
+            else:
+                raise ValueError(f"Unknown strategy: {strategy}")
+
+            self._current = selected
+            return selected
+
+    async def rotate(self) -> Credential:
+        """Rotate to the next available credential (used after AUTH/BILLING errors).
+
+        Marks the current credential as COOLING and selects the next one.
+        Raises CredentialExhaustedError if no alternatives are available.
+        """
+        async with self._lock:
+            if self._current is not None:
+                self._current.status = CredentialStatus.COOLING
+                self._current.cooldown_until = time.monotonic() + 3600  # 1 hour cooldown
+
+            self.cleanup()
+            available = [c for c in self._credentials if self._is_available(c)]
+            if not available:
+                raise CredentialExhaustedError("No alternative credentials after rotation")
+
+            # Pick next after current
+            if self._current in available:
+                idx = available.index(self._current)
+                selected = available[(idx + 1) % len(available)]
+            else:
+                selected = available[0]
+
+            self._current = selected
+            return selected
 
     async def report_error(self, credential: Credential, error: Exception) -> None:
         """Report an error. Handles 429 (rate limit) and 402 (payment required)."""
@@ -94,7 +138,6 @@ class CredentialPool:
             if hasattr(error, "response") and hasattr(error.response, "status_code"):
                 status_code = error.response.status_code
 
-            # Try to extract status code from error message
             if status_code is None:
                 msg = str(error).lower()
                 if "429" in msg:
@@ -113,7 +156,6 @@ class CredentialPool:
         """Report successful use of a credential."""
         async with self._lock:
             credential.usage_count += 1
-            # Reset status if it was cooling
             if credential.status == CredentialStatus.COOLING:
                 credential.status = CredentialStatus.OK
                 credential.cooldown_until = None
@@ -125,3 +167,53 @@ class CredentialPool:
             if c.status == CredentialStatus.COOLING and c.cooldown_until and c.cooldown_until <= now:
                 c.status = CredentialStatus.OK
                 c.cooldown_until = None
+
+
+# ── Global singleton ──────────────────────────────────────────────────
+
+_global_pool: Optional[CredentialPool] = None
+
+
+def get_credential_pool() -> Optional[CredentialPool]:
+    """Return the global credential pool singleton, or None if not initialized."""
+    return _global_pool
+
+
+def init_credential_pool_from_config() -> Optional[CredentialPool]:
+    """Initialize the global credential pool from OpenCortex settings.
+
+    Reads extra API keys from config and populates the pool.
+    Returns the pool if keys were found, None otherwise.
+    """
+    global _global_pool
+
+    try:
+        from opencortex.config import settings
+        keys: list[str] = []
+
+        # Primary key
+        if settings.api_key:
+            keys.append(settings.api_key)
+
+        # Extra keys from config (comma-separated or list)
+        extra = getattr(settings, 'extra_api_keys', None)
+        if extra:
+            if isinstance(extra, str):
+                keys.extend(k.strip() for k in extra.split(',') if k.strip())
+            elif isinstance(extra, list):
+                keys.extend(k.strip() for k in extra if k.strip())
+
+        if len(keys) < 2:
+            # No point in a pool with < 2 keys
+            return None
+
+        pool = CredentialPool()
+        provider = getattr(settings, 'provider', 'openai')
+        for key in keys:
+            pool.add(Credential(api_key=key, provider=provider))
+
+        _global_pool = pool
+        return pool
+
+    except Exception:
+        return None
