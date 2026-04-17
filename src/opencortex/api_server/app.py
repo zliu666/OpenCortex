@@ -27,6 +27,8 @@ from opencortex.a2a.context_layer import ContextLayer, summarize_tool_output
 from opencortex.a2a.executor import TaskExecutor
 from opencortex.mcp import create_mcp_app
 
+from opencortex.engine.token_stats import global_token_stats
+
 from .models import (
     ErrorResponse,
     QueryRequest,
@@ -107,6 +109,20 @@ async def _run_query(bundle, prompt: str) -> tuple[str, UsageInfo, list[ToolCall
         usage.output_tokens = getattr(total, "output_tokens", 0)
 
     return collected_text.strip(), usage, tool_calls
+
+
+async def _record_usage(usage: UsageInfo, model: str = "unknown", session_id: str = "", task_type: str = "query") -> None:
+    """Record token usage to global stats (best-effort, never blocks)."""
+    try:
+        await global_token_stats.record(
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            model=model,
+            session_id=session_id,
+            task_type=task_type,
+        )
+    except Exception:
+        logger.debug("Failed to record token stats", exc_info=True)
 
 
 @asynccontextmanager
@@ -274,6 +290,75 @@ async def get_status():
     )
 
 
+# ---------------------------------------------------------------------------
+# Phase 0: Observability — /health & /metrics
+# ---------------------------------------------------------------------------
+
+@app.get("/health")
+async def health_check():
+    """Comprehensive health check with dependency verification."""
+    import importlib
+    import platform
+    import sys
+
+    checks: dict[str, str] = {}
+    deps = ["anthropic", "openai", "rich", "prompt_toolkit", "fastapi", "uvicorn", "aiosqlite"]
+    for dep in deps:
+        try:
+            mod = importlib.import_module(dep)
+            ver = getattr(mod, "__version__", "ok")
+            checks[dep] = f"ok ({ver})" if isinstance(ver, str) else "ok"
+        except ImportError:
+            checks[dep] = "MISSING"
+
+    # Check persistence store availability
+    try:
+        from opencortex.persistence.store import PersistenceStore
+        checks["persistence"] = "ok"
+    except Exception as e:
+        checks["persistence"] = f"error: {e}"
+
+    # Check config
+    try:
+        settings = load_settings()
+        checks["config"] = "ok"
+        configured_model = settings.model
+    except Exception as e:
+        checks["config"] = f"error: {e}"
+        configured_model = "unknown"
+
+    # Check API key (without revealing it)
+    api_key_set = bool(settings.api_key) if "settings" in dir() else False
+    checks["api_key"] = "configured" if api_key_set else "NOT SET"
+
+    all_ok = all("ok" in v or "configured" in v for v in checks.values())
+
+    return {
+        "status": "healthy" if all_ok else "degraded",
+        "version": __version__,
+        "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "platform": platform.system(),
+        "model": configured_model,
+        "active_sessions": session_manager.active_count,
+        "uptime_seconds": global_token_stats.snapshot()["uptime_seconds"],
+        "checks": checks,
+    }
+
+
+@app.get("/metrics")
+async def get_metrics():
+    """Token usage metrics across four dimensions."""
+    stats = global_token_stats.snapshot()
+    settings = load_settings()
+    return {
+        "status": "ok",
+        "version": __version__,
+        "model": settings.model,
+        "active_sessions": session_manager.active_count,
+        "token_stats": stats,
+    }
+
+
 @app.post("/query", response_model=QueryResponse)
 async def query(req: QueryRequest):
     if not req.prompt.strip():
@@ -293,6 +378,7 @@ async def query(req: QueryRequest):
         )
         await start_runtime(bundle)
         text, usage, tool_calls = await _run_query(bundle, req.prompt)
+        await _record_usage(usage, model=req.model or "default", task_type="query")
         return QueryResponse(
             status="success",
             response=text,
@@ -326,6 +412,7 @@ async def create_session(req: SessionCreateRequest):
         await start_runtime(bundle)
         text, usage, tool_calls = await _run_query(bundle, req.prompt)
         session = session_manager.create(bundle)
+        await _record_usage(usage, model=req.model or "default", session_id=session.id, task_type="session")
         return SessionCreateResponse(
             session_id=session.id,
             status="success",
@@ -351,6 +438,7 @@ async def session_message(session_id: str, req: SessionMessageRequest):
 
     try:
         text, usage, tool_calls = await _run_query(session.bundle, req.prompt)
+        await _record_usage(usage, model=session.bundle.engine._model if hasattr(session.bundle.engine, '_model') else "default", session_id=session_id, task_type="session")
         return SessionMessageResponse(
             status="success",
             response=text,
@@ -369,4 +457,5 @@ async def delete_session(session_id: str):
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
     await close_runtime(session.bundle)
     session_manager.remove(session_id)
+    global_token_stats.remove_session(session_id)
     return {"status": "deleted", "session_id": session_id}
