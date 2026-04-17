@@ -327,8 +327,11 @@ async def health_check():
         checks["config"] = f"error: {e}"
         configured_model = "unknown"
 
-    # Check API key (without revealing it)
-    api_key_set = bool(settings.api_key) if "settings" in dir() else False
+    # Check API key (without revealing the actual value)
+    try:
+        api_key_set = bool(settings.api_key)
+    except NameError:
+        api_key_set = False
     checks["api_key"] = "configured" if api_key_set else "NOT SET"
 
     all_ok = all("ok" in v or "configured" in v for v in checks.values())
