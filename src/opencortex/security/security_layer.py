@@ -56,8 +56,9 @@ class SecurityLayer:
     ) -> None:
         self._classifier = ToolClassifier()
         self._validator = ToolCallValidator(
-            api_client=api_client if llm_validation_enabled else None,
+            api_client=api_client,
             model=model,
+            llm_validation_enabled=llm_validation_enabled,
         )
         self._cleaner = ResultCleaner(
             api_client=api_client,
@@ -103,8 +104,8 @@ class SecurityLayer:
                 call_history=call_history,
             )
         except Exception:
-            log.exception("security: validator error for %s, defaulting to allow", tool_name)
-            allowed = True
+            log.exception("security: validator error for %s, failing closed (blocked)", tool_name)
+            allowed = False
 
         if not allowed:
             log.warning("security: BLOCKED %s (category=%s, risk=%s)",

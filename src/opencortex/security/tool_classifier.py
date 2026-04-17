@@ -104,12 +104,11 @@ class ToolClassifier:
         for name in (
             "bash", "shell", "exec", "execute", "run_command",
             "file_write", "file_edit", "file_delete", "file_move", "file_copy",
-            "write_file", "edit_file", "delete_file", "move_file", "copy_file",
             "mkdir", "rm", "cp", "mv", "chmod", "chown",
             "git_push", "git_commit", "deploy", "install", "pip_install",
             "npm_install", "apt_install",
             # OpenCortex-specific
-            "file_write", "file_edit", "notebook_edit", "todo_write",
+            "notebook_edit", "todo_write",
             "task_create", "task_update", "task_stop",
             "team_create", "team_delete",
             "cron_create", "cron_delete", "cron_toggle",

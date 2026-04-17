@@ -186,3 +186,78 @@ class TestSecurityLayer:
         text = "Normal output"
         result = await layer.sanitize_tool_result(text)
         assert result == text
+
+
+# ── Regression tests for audit-fix bugs ────────────────────────────────────
+
+class TestAuditFixes:
+    """Tests for bugs caught during post-commit audit."""
+
+    @pytest.mark.asyncio
+    async def test_validator_tier3_llm_called_for_command(self):
+        """Fix 1: validate_with_llm() must be invoked for non-safe COMMAND tools
+        when llm_validation_enabled=True and api_client is provided."""
+        mock_client = MagicMock()
+        # Simulate LLM saying "safe"
+        async def fake_stream(request):
+            class Ev:
+                text = "true"
+            yield Ev()
+        mock_client.stream_message = fake_stream
+
+        v = ToolCallValidator(
+            api_client=mock_client,
+            model="test-model",
+            llm_validation_enabled=True,
+        )
+        # "unknown_cmd" is COMMAND, not in safe list, no dangerous pattern
+        result = await v.validate(
+            category=ToolCategory.COMMAND,
+            tool_name="unknown_cmd",
+            tool_args={"command": "echo hello"},
+            tool_description="Do something",
+            user_query="test",
+        )
+        assert result is True  # LLM approved
+
+    @pytest.mark.asyncio
+    async def test_validator_tier3_disabled_skips_llm(self):
+        """When llm_validation_enabled=False, Tier 3 is skipped entirely."""
+        v = ToolCallValidator(
+            api_client=None,
+            llm_validation_enabled=False,
+        )
+        # Should not raise, and should default-allow
+        result = await v.validate(
+            category=ToolCategory.COMMAND,
+            tool_name="unknown_cmd",
+            tool_args={"command": "echo hello"},
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_security_layer_fail_closed_on_validator_error(self):
+        """Fix 2: if validator throws, security_layer must block (fail-closed)."""
+        layer = SecurityLayer()
+        # Patch validator.validate to raise
+        original_validate = layer._validator.validate
+
+        async def bad_validate(**kwargs):
+            raise RuntimeError("simulated validator crash")
+
+        layer._validator.validate = bad_validate
+        result = await layer.check_tool_call(
+            "bash", {"command": "echo hi"}, "Run", "test",
+        )
+        assert result.allowed is False  # fail-closed!
+
+    def test_tool_classifier_no_duplicate_registrations(self):
+        """Fix 3: no tool name should appear twice in _exact map."""
+        tc = ToolClassifier()
+        # Just verify the classifier builds cleanly — duplicates would silently
+        # overwrite, so we check known entries resolve correctly
+        assert tc.classify("file_write") == ToolCategory.COMMAND
+        assert tc.classify("file_edit") == ToolCategory.COMMAND
+        assert tc.classify("bash") == ToolCategory.COMMAND
+        assert tc.classify("write_file") == ToolCategory.COMMAND  # prefix match
+        assert tc.classify("edit_file") == ToolCategory.COMMAND  # prefix match

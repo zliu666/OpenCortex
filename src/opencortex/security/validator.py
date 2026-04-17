@@ -51,9 +51,11 @@ class ToolCallValidator:
         self,
         api_client: SupportsStreamingMessages | None = None,
         model: str = "glm-5.1",
+        llm_validation_enabled: bool = True,
     ) -> None:
         self._api_client = api_client
         self._model = model
+        self._llm_enabled = llm_validation_enabled and api_client is not None
 
     async def validate(
         self,
@@ -69,7 +71,7 @@ class ToolCallValidator:
         Three-tier strategy:
         1. INTERNAL tools → always pass (whitelist)
         2. COMMAND tools with dangerous patterns → always block (rules)
-        3. Everything else → pass (LLM available for future use)
+        3. Suspicious COMMAND calls → LLM validation (when enabled)
         """
         # ── Tier 1: Whitelist ──────────────────────────────────────
         if category == ToolCategory.INTERNAL:
@@ -105,8 +107,18 @@ class ToolCallValidator:
                 log.debug("validator: %s is known-safe COMMAND, allowed", tool_name)
                 return True
 
-        # ── Tier 3: Default allow (LLM validation available but not used by default)
-        # LLM validation adds 3-4s latency per call. Enable only for high-security mode.
+        # ── Tier 3: LLM validation for remaining COMMAND tools ─────
+        if self._llm_enabled and category == ToolCategory.COMMAND:
+            log.info("validator: %s going to Tier 3 LLM validation", tool_name)
+            return await self.validate_with_llm(
+                tool_name=tool_name,
+                tool_args=tool_args,
+                tool_description=tool_description,
+                user_query=user_query,
+                call_history=call_history,
+            )
+
+        # Default allow for non-COMMAND that weren't caught above
         log.debug("validator: %s passed all tiers, allowed", tool_name)
         return True
 
