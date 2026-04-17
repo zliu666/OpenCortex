@@ -118,6 +118,9 @@ class ToolClassifier:
         ):
             self._exact[name] = ToolCategory.COMMAND
 
+        # write_file is a structured write tool, but many write_* tools
+        # (write_output, write_summary, etc.) are safe.  Register explicitly.
+        self._exact["write_file"] = ToolCategory.COMMAND
         self._prefixes.append(("write_", ToolCategory.COMMAND))
         self._prefixes.append(("edit_", ToolCategory.COMMAND))
         self._prefixes.append(("delete_", ToolCategory.COMMAND))

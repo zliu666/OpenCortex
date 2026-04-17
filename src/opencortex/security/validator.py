@@ -50,16 +50,31 @@ DANGEROUS_PATTERNS: list[re.Pattern] = [
     re.compile(r"\bnc\s+-e\s", re.I),           # M3 fix: simplified nc reverse shell
     re.compile(r"/etc/passwd|/etc/shadow", re.I),
     re.compile(r"\bsudo\s+rm\b", re.I),
-    re.compile(r"\bpython[23]?\s+-c\b.*\bimport\b.*\bos\b", re.I),  # python os import
+    re.compile(r"\bpython[23]?\s+-c\b.*\bimport\s+(?:os|subprocess|shutil|socket)\s*\.\s*(?:system|popen|exec|run|call|remove|rmtree)", re.I),  # python dangerous imports
     re.compile(r"\b(eval|exec)\s*\(", re.I),      # eval/exec in commands
 ]
 
 # Known-safe command prefixes (only for pure commands without metacharacters)
 SAFE_COMMAND_PREFIXES = (
-    "git status", "git log", "git diff", "git branch", "git show",
+    # VCS
+    "git status", "git log", "git diff", "git branch", "git show", "git stash",
+    "git remote", "git config", "git tag",
+    # Read-only system
     "ls", "cat", "head", "tail", "grep", "find", "which", "echo",
-    "pwd", "whoami", "hostname", "date", "python3 -c \"import",
-    "pip list", "pip show", "npm list",
+    "pwd", "whoami", "hostname", "date", "env", "printenv",
+    "stat", "file", "wc", "diff", "sort", "uniq", "tr", "cut",
+    # Development tools (common in AI-assisted coding)
+    "python3", "python", "pip list", "pip show", "pip check",
+    "pytest", "py.test",
+    "npm list", "npm test", "npm run",
+    "node", "npx",
+    "cargo check", "cargo test", "cargo build",
+    "go test", "go build", "go vet",
+    "make", "cmake",
+    "docker ps", "docker images", "docker logs",
+    "kubectl get", "kubectl describe", "kubectl logs",
+    # Safe compute
+    "bc", "expr", "python3 -c \"", "python -c \"",
 )
 
 # ── Sensitive path detection (H4 fix) ──────────────────────────────────────
@@ -134,6 +149,18 @@ class ToolCallValidator:
                 log.debug("validator: %s is known-safe COMMAND, allowed", tool_name)
                 return True
 
+            # Structured write tools (write_file, file_edit, mkdir, etc.)
+            # These don't execute shell commands — only check for sensitive paths.
+            if self._is_structured_write_tool(tool_name, tool_args):
+                if self._has_sensitive_args(tool_args):
+                    log.warning(
+                        "validator: BLOCKED structured write %s — sensitive path in args",
+                        tool_name,
+                    )
+                    return False
+                log.debug("validator: %s is structured write tool, allowed", tool_name)
+                return True
+
             # Extract command string (deep search — H2 fix)
             command_str = self._extract_command(tool_name, tool_args)
 
@@ -149,6 +176,14 @@ class ToolCallValidator:
                     # No metacharacters — safe to check known-safe prefixes
                     for safe_prefix in SAFE_COMMAND_PREFIXES:
                         if command_str.lower().startswith(safe_prefix):
+                            # Even with safe prefix, check ALL other arg values
+                            # for hidden injection (H2 extended)
+                            if self._has_dangerous_in_args(tool_args, exclude_keys=("command", "cmd", "script")):
+                                log.warning(
+                                    "validator: BLOCKED %s — dangerous pattern in non-command args",
+                                    tool_name,
+                                )
+                                return False
                             log.debug(
                                 "validator: %s matches safe prefix (no metachars), allowed",
                                 tool_name,
@@ -163,6 +198,14 @@ class ToolCallValidator:
                             tool_name, pattern.pattern,
                         )
                         return False
+
+            # H2 extended: check ALL string values in args for hidden injection
+            if self._has_dangerous_in_args(tool_args):
+                log.warning(
+                    "validator: BLOCKED %s — dangerous pattern detected in args",
+                    tool_name,
+                )
+                return False
 
             # ── Tier 3: LLM validation for remaining COMMAND tools ─────
             if self._llm_enabled:
@@ -204,6 +247,59 @@ class ToolCallValidator:
         """
         for value in tool_args.values():
             if isinstance(value, str) and _SENSITIVE_PATH_RE.search(value):
+                return True
+        return False
+
+    # Tools that perform structured writes (not shell execution).
+    # Identified by having no 'command'/'cmd'/'script' keys in args.
+    _STRUCTURED_WRITE_PREFIXES = (
+        "write_", "edit_", "file_edit", "file_write",
+        "mkdir", "cp", "mv", "touch", "create_",
+        "update_", "todo_write", "notebook_edit",
+    )
+
+    def _is_structured_write_tool(self, tool_name: str, tool_args: dict) -> bool:
+        """Check if this is a structured write tool (not a shell command).
+
+        Structured tools don't have 'command'/'cmd'/'script' keys — they have
+        structured arguments like 'path', 'content', etc.
+        """
+        # If it has a command key, it's shell-like, not structured
+        for key in ("command", "cmd", "script"):
+            if key in tool_args:
+                return False
+        # Check against known structured write tool prefixes
+        for prefix in self._STRUCTURED_WRITE_PREFIXES:
+            if tool_name.startswith(prefix) or tool_name == prefix:
+                return True
+        return False
+
+    def _has_dangerous_in_args(self, tool_args: dict, *, exclude_keys: tuple = ()) -> bool:
+        """Recursively check ALL string values in tool_args for dangerous patterns.
+
+        H2 extended: injection can hide in nested args, not just 'command' key.
+        """
+        def _check_value(val):
+            if isinstance(val, str):
+                for pattern in DANGEROUS_PATTERNS:
+                    if pattern.search(val):
+                        return True
+                if self._has_shell_metacharacters(val):
+                    return True
+            elif isinstance(val, dict):
+                for k, v in val.items():
+                    if k not in exclude_keys and _check_value(v):
+                        return True
+            elif isinstance(val, list):
+                for item in val:
+                    if _check_value(item):
+                        return True
+            return False
+
+        for key, val in tool_args.items():
+            if key in exclude_keys:
+                continue
+            if _check_value(val):
                 return True
         return False
 
