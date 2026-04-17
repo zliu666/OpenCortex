@@ -140,7 +140,10 @@ async def lifespan(app: FastAPI):
     yield
     # Cleanup sessions
     for sid in list(session_manager._sessions):
-        session_manager.remove(sid)
+        session = session_manager.get(sid)
+        if session:
+            await close_runtime(session.bundle)
+            session_manager.remove(sid)
     logger.info("OpenCortex API server stopped")
 
 

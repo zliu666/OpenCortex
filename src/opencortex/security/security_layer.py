@@ -133,5 +133,10 @@ class SecurityLayer:
         try:
             return await self._cleaner.clean(tool_result_text, category=category)
         except Exception:
-            log.exception("security: cleaner error, returning raw result")
+            log.exception("security: cleaner error for category=%s, returning empty (fail-closed)", category)
+            # M1 fix: fail-closed — if cleaner fails for EXTERNAL content,
+            # don't return potentially malicious raw content
+            if category == "external":
+                return "[Content removed: cleaning failed for external content]"
+            # For internal/command, raw content is from local tools, safe to return
             return tool_result_text
