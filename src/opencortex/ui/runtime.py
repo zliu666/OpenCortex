@@ -184,9 +184,8 @@ async def build_runtime(
         sec_model = settings.security.security_model or settings.model
         security_layer = SecurityLayer(
             resolved_api_client, sec_model,
-            validator_enabled=settings.security.validator_enabled,
-            sanitizer_enabled=settings.security.sanitizer_enabled,
-            privilege_assignor_enabled=settings.security.privilege_assignor_enabled,
+            llm_validation_enabled=settings.security.llm_validation_enabled,
+            llm_cleaning_enabled=settings.security.llm_cleaning_enabled,
         )
         engine.set_security_layer(security_layer)
 

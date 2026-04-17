@@ -87,7 +87,7 @@ DEFAULT_AGENT_CARD = AgentCard(
         Capability(
             name="security_layer",
             type="feature",
-            description="三级安全防线（Validator、Sanitizer、PrivilegeAssignor）"
+            description="三级安全流水线（分类→验证→清洗）"
         ),
         Capability(
             name="sub_agent",

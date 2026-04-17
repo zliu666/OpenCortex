@@ -60,7 +60,7 @@ class ResultCleaner:
         self,
         api_client: SupportsStreamingMessages | None = None,
         model: str = "glm-5.1",
-        llm_cleaning_enabled: bool = False,
+        llm_cleaning_enabled: bool = True,
     ) -> None:
         self._api_client = api_client
         self._model = model

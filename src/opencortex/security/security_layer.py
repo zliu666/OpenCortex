@@ -51,8 +51,8 @@ class SecurityLayer:
         api_client: SupportsStreamingMessages | None = None,
         model: str = "glm-5.1",
         *,
-        llm_cleaning_enabled: bool = False,
-        llm_validation_enabled: bool = False,
+        llm_cleaning_enabled: bool = True,
+        llm_validation_enabled: bool = True,
     ) -> None:
         self._classifier = ToolClassifier()
         self._validator = ToolCallValidator(

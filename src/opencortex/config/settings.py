@@ -63,12 +63,11 @@ class SandboxSettings(BaseModel):
 
 
 class SecuritySettings(BaseModel):
-    """AgentSys security layer configuration."""
+    """Security layer configuration (P2 redesigned: classify→validate→clean)."""
     enabled: bool = True  # master switch — default ON
-    validator_enabled: bool = True
-    sanitizer_enabled: bool = True
-    privilege_assignor_enabled: bool = True
-    security_model: str = "glm-5.1"  # model used for security judgments
+    llm_validation_enabled: bool = True   # Tier 3 LLM validation for COMMAND tools
+    llm_cleaning_enabled: bool = True     # LLM cleaning for EXTERNAL tool results
+    security_model: str = "glm-5.1"       # model used for security LLM calls
 
 
 class ExecutionModelProviderConfig(BaseModel):
