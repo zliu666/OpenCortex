@@ -341,6 +341,7 @@ async def _execute_tool_call(
 
     # ── Security layer check (after permission, before execution) ──
     security_layer = context.security_layer
+    sec_category = None  # store category for post-execution cleaning
     if security_layer is not None:
         from opencortex.security.security_layer import SecurityLayer
         assert isinstance(security_layer, SecurityLayer)
@@ -354,6 +355,7 @@ async def _execute_tool_call(
             user_query=user_query,
             call_history="",
         )
+        sec_category = sec_result.category.value if sec_result.category else "internal"
         if not sec_result.allowed:
             log.info("security layer blocked: %s (%s)", tool_name, sec_result.reason)
             return ToolResultBlock(
@@ -384,9 +386,11 @@ async def _execute_tool_call(
         is_error=result.is_error,
     )
 
-    # ── Security layer: sanitize tool output ──
+    # ── Security layer: clean tool output ──
     if security_layer is not None and not tool_result.is_error and tool_result.content:
-        sanitized = await security_layer.sanitize_tool_result(tool_result.content)
+        sanitized = await security_layer.sanitize_tool_result(
+            tool_result.content, category=sec_category or "internal",
+        )
         tool_result = ToolResultBlock(
             tool_use_id=tool_use_id,
             content=sanitized,

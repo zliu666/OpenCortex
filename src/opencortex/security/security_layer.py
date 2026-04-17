@@ -1,17 +1,26 @@
-"""SecurityLayer — main entry point that wires Validator, Sanitizer, PrivilegeAssignor."""
+"""SecurityLayer — three-stage pipeline: classify → validate → clean.
+
+Replaces the old 6-component AgentSys design with a streamlined approach:
+1. Classify (ToolClassifier, instant) → category + risk_level
+2. Validate (ToolCallValidator, instant for whitelist/rules) → allow/block
+3. Clean (ResultCleaner, instant rules + optional LLM) → safe output
+
+Only EXTERNAL content triggers optional LLM cleaning. Everything else is rule-based.
+"""
 
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from opencortex.security.dispatcher import SubAgentDispatcher, DispatchResult
-from opencortex.security.intent import IntentInjector
-from opencortex.security.privilege import ToolPrivilege, ToolPrivilegeAssignor
-from opencortex.security.sanitizer import ToolResultSanitizer
-from opencortex.security.tool_classifier import ToolCategory, ToolClassifier
+from opencortex.security.result_cleaner import ResultCleaner
+from opencortex.security.tool_classifier import (
+    CATEGORY_RISK,
+    RiskLevel,
+    ToolCategory,
+    ToolClassifier,
+)
 from opencortex.security.validator import ToolCallValidator
 
 if TYPE_CHECKING:
@@ -22,127 +31,106 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class SecurityCheckResult:
-    """Result of a security check on a tool call."""
+    """Result of a pre-execution security check."""
     allowed: bool
     reason: str = ""
-    sanitized_output: str | None = None  # set after tool execution if sanitizer runs
-    privilege: ToolPrivilege | None = None
     category: ToolCategory | None = None
-    stripped_args: dict | None = None  # tool args with intent removed
+    risk_level: RiskLevel | None = None
 
 
 class SecurityLayer:
-    """Orchestrates the three AgentSys security components.
+    """Three-stage security pipeline.
 
-    Each component can be individually toggled. When the whole layer is
-    disabled (via settings), all checks pass through with zero overhead.
+    Stage 1 (Classify): ToolClassifier → ToolCategory + RiskLevel (instant)
+    Stage 2 (Validate): ToolCallValidator → allow/block (instant for most tools)
+    Stage 3 (Clean): ResultCleaner → clean output (rules always, LLM optional)
     """
 
     def __init__(
         self,
-        api_client: SupportsStreamingMessages,
+        api_client: SupportsStreamingMessages | None = None,
         model: str = "glm-5.1",
         *,
-        validator_enabled: bool = True,
-        sanitizer_enabled: bool = True,
-        privilege_assignor_enabled: bool = True,
-        dispatcher_enabled: bool = True,
-        max_dispatch_depth: int = 5,
+        llm_cleaning_enabled: bool = False,
+        llm_validation_enabled: bool = False,
     ) -> None:
         self._classifier = ToolClassifier()
-        self._validator = ToolCallValidator(api_client, model) if validator_enabled else None
-        self._sanitizer = ToolResultSanitizer(api_client, model) if sanitizer_enabled else None
-        self._privilege_assignor = ToolPrivilegeAssignor(api_client, model) if privilege_assignor_enabled else None
-        self._dispatcher = SubAgentDispatcher(api_client, model, max_depth=max_dispatch_depth) if dispatcher_enabled else None
-        self._intent_injector = IntentInjector()
+        self._validator = ToolCallValidator(
+            api_client=api_client if llm_validation_enabled else None,
+            model=model,
+        )
+        self._cleaner = ResultCleaner(
+            api_client=api_client,
+            model=model,
+            llm_cleaning_enabled=llm_cleaning_enabled,
+        )
+        self._llm_validation_enabled = llm_validation_enabled
+
+    # ── Stage 1: Classify ──────────────────────────────────────────────
+
+    def classify(self, tool_name: str, tool_description: str = "") -> tuple[ToolCategory, RiskLevel]:
+        """Classify a tool and return (category, risk_level)."""
+        category = self._classifier.classify(tool_name, tool_description)
+        risk_level = CATEGORY_RISK[category]
+        return category, risk_level
+
+    # ── Stage 2: Validate (pre-execution) ──────────────────────────────
 
     async def check_tool_call(
         self,
         tool_name: str,
         tool_args: dict,
-        tool_description: str,
-        user_query: str,
+        tool_description: str = "",
+        user_query: str = "",
         call_history: str = "",
     ) -> SecurityCheckResult:
-        """Pre-execution check: validate tool call is safe + necessary.
+        """Pre-execution check: classify + validate.
 
         Returns SecurityCheckResult with allowed=True/False.
         """
-        privilege = None
-        category = None
+        # Stage 1: Classify
+        category, risk_level = self.classify(tool_name, tool_description)
+        log.info("security: %s → %s / %s", tool_name, category.value, risk_level.value)
 
-        # Step 0: rule-based tool classification
-        category = self._classifier.classify(tool_name, tool_description)
-        log.info("security layer: %s classified as %s", tool_name, category.value)
-
-        # Step 1: classify privilege level
-        if self._privilege_assignor is not None:
-            privilege = await self._privilege_assignor.classify(
-                tool_name, tool_description,
-            )
-
-        # Step 1b: extra scrutiny for Command tools
-        if privilege == ToolPrivilege.COMMAND:
-            log.info("security layer: %s classified as Command (write), applying strict validation",
-                     tool_name)
-
-        # Step 2: validate safety + necessity
-        if self._validator is not None:
+        # Stage 2: Validate
+        try:
             allowed = await self._validator.validate(
-                tool_name, tool_args, tool_description,
-                user_query, call_history,
+                category=category,
+                tool_name=tool_name,
+                tool_args=tool_args,
+                tool_description=tool_description,
+                user_query=user_query,
+                call_history=call_history,
             )
-            if not allowed:
-                log.warning("security layer blocked tool call: %s", tool_name)
-                return SecurityCheckResult(
-                    allowed=False,
-                    reason=f"Security validator blocked {tool_name}: deemed unsafe or unnecessary",
-                    privilege=privilege,
-                )
-        else:
-            # Validator disabled: still log classification info for auditing
-            log.warning("security layer: validator DISABLED, allowing %s (%s/%s) without validation",
-                        tool_name,
-                        privilege.value if privilege else "unknown",
-                        category.value if category else "unknown")
+        except Exception:
+            log.exception("security: validator error for %s, defaulting to allow", tool_name)
+            allowed = True
 
-        return SecurityCheckResult(allowed=True, privilege=privilege, category=category)
+        if not allowed:
+            log.warning("security: BLOCKED %s (category=%s, risk=%s)",
+                        tool_name, category.value, risk_level.value)
+            return SecurityCheckResult(
+                allowed=False,
+                reason=f"Security check blocked {tool_name}: dangerous pattern detected",
+                category=category,
+                risk_level=risk_level,
+            )
 
-    async def sanitize_tool_result(self, tool_result_text: str) -> str:
-        """Post-execution: remove injected instructions from tool output."""
-        if self._sanitizer is None:
+        return SecurityCheckResult(
+            allowed=True,
+            category=category,
+            risk_level=risk_level,
+        )
+
+    # ── Stage 3: Clean (post-execution) ────────────────────────────────
+
+    async def sanitize_tool_result(self, tool_result_text: str, category: str = "internal") -> str:
+        """Post-execution: clean tool output."""
+        if not tool_result_text:
             return tool_result_text
-        return await self._sanitizer.sanitize(tool_result_text)
 
-    def strip_intent_from_args(self, tool_args: dict) -> dict:
-        """Remove intent parameter from tool args before execution."""
-        return self._intent_injector.strip_intent_from_args(tool_args)
-
-    async def dispatch_external_result(
-        self,
-        tool_name: str,
-        tool_result: str,
-        intent: str | None = None,
-    ) -> DispatchResult:
-        """Dispatch EXTERNAL tool result to sub-agent for isolated processing."""
-        if self._dispatcher is None:
-            log.warning("dispatcher not enabled, returning raw result")
-            return DispatchResult(
-                success=True,
-                content=tool_result,
-                retries_used=0,
-            )
-        return await self._dispatcher.dispatch(tool_name, tool_result, intent)
-
-    def truncate_command_result(self, tool_result: str, tool_name: str) -> str:
-        """Truncate COMMAND tool results to confirmation only.
-
-        Exception: if tool name contains 'get', return the full result.
-        """
-        if 'get' in tool_name.lower():
-            return tool_result
-        return f"Tool '{tool_name}' successfully executed."
-
-    def should_dispatch(self, category: ToolCategory) -> bool:
-        """Return True if this category should be dispatched to sub-agent."""
-        return category == ToolCategory.EXTERNAL and self._dispatcher is not None
+        try:
+            return await self._cleaner.clean(tool_result_text, category=category)
+        except Exception:
+            log.exception("security: cleaner error, returning raw result")
+            return tool_result_text

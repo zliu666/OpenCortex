@@ -23,6 +23,20 @@ class ToolCategory(str, Enum):
     COMMAND = "command"
 
 
+class RiskLevel(str, Enum):
+    """Risk level derived from tool category."""
+    LOW = "low"          # INTERNAL — local read-only, minimal risk
+    MEDIUM = "medium"    # EXTERNAL — external content, needs cleaning
+    HIGH = "high"        # COMMAND — side-effects, needs validation
+
+# Category → RiskLevel mapping (eliminates PrivilegeAssignor)
+CATEGORY_RISK: dict[ToolCategory, RiskLevel] = {
+    ToolCategory.INTERNAL: RiskLevel.LOW,
+    ToolCategory.EXTERNAL: RiskLevel.MEDIUM,
+    ToolCategory.COMMAND: RiskLevel.HIGH,
+}
+
+
 # Type alias for custom rules
 RuleFn = Callable[[str, str], ToolCategory | None]
 
@@ -53,6 +67,8 @@ class ToolClassifier:
             "web_fetch", "web_search", "http_get", "http_post", "http_request",
             "curl", "wget", "fetch_url", "search_web", "search_internet",
             "browse", "scrape", "download",
+            # OpenCortex-specific
+            "browser", "send_message", "remote_trigger",
         ):
             self._exact[name] = ToolCategory.EXTERNAL
 
@@ -69,6 +85,10 @@ class ToolClassifier:
             "grep", "find", "which", "whereis", "env", "echo", "pwd",
             "ls", "stat", "file", "wc", "diff",
             "memory_search", "memory_get",
+            # OpenCortex-specific
+            "glob", "tool_search", "task_list", "task_get", "task_output",
+            "list_mcp_resources", "read_mcp_resource",
+            "cron_list", "config", "lsp", "brief", "skill",
         ):
             self._exact[name] = ToolCategory.INTERNAL
 
@@ -88,6 +108,14 @@ class ToolClassifier:
             "mkdir", "rm", "cp", "mv", "chmod", "chown",
             "git_push", "git_commit", "deploy", "install", "pip_install",
             "npm_install", "apt_install",
+            # OpenCortex-specific
+            "file_write", "file_edit", "notebook_edit", "todo_write",
+            "task_create", "task_update", "task_stop",
+            "team_create", "team_delete",
+            "cron_create", "cron_delete", "cron_toggle",
+            "enter_plan_mode", "exit_plan_mode",
+            "enter_worktree", "exit_worktree",
+            "ask_user_question", "agent", "mcp", "mcp_auth", "sleep",
         ):
             self._exact[name] = ToolCategory.COMMAND
 
